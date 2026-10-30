@@ -412,6 +412,14 @@
   .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 18px; padding: 14px 16px; align-items: end; }
   label.check { display: flex; gap: 8px; align-items: center; min-height: 38px; }
   .room-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; padding: 14px 16px; }
+  /* ในกล่อง .stats กฎ ".stats > div" (flex + space-between) ชนะ → ช่องกระจายชิดซ้าย-ขวา ต้องคืนเป็น grid */
+  .stats > .form-grid, .stats > .room-checks { display: grid; justify-content: normal; padding: 14px 16px; border-top: 0; }
+  .stats > .form-grid { align-items: end; }
+  .room-checks label.on { background: var(--board); border-color: var(--board); color: var(--board-ink); font-weight: 600; }
+  .room-checks label:not(.on) { color: var(--muted); }
+  .stats h3 .step { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: var(--board); color: var(--board-ink); font-size: 13px; vertical-align: 1px; }
+  .save-row [data-dirty] .redpen { text-decoration: none; font-weight: 600; }
+  .settings-form.dirty .save-row .btn.primary { box-shadow: 0 0 0 3px rgba(246,216,74,.8); }
   .room-checks label { display: flex; gap: 6px; align-items: center; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: 6px 10px; cursor: pointer; }
   .tabs.sub { border-bottom-width: 1px; }
   .tabs.sub button { font-size: 14px; padding: 6px 10px; }
@@ -2401,7 +2409,7 @@ App.pages.settings = {
       </div>
       ${!o.courses.length && !isAdmin ? '<div class="empty">คุณยังไม่มีรายวิชาที่แก้ไขได้</div>' : `
       <form class="settings-form" data-course-form>
-        <div class="stats"><h3>${isNew ? 'สร้างรายวิชาใหม่' : 'ข้อมูลรายวิชา'}</h3><div class="form-grid">
+        <div class="stats"><h3><span class="step">1</span>${isNew ? 'สร้างรายวิชาใหม่' : 'ข้อมูลรายวิชา'}</h3><div class="form-grid">
           <label class="f"><span>ภาคเรียน</span><select name="term_id" ${isAdmin ? '' : 'disabled'}>${opt(o.terms, c.term_id)}</select></label>
           <label class="f"><span>วิชา</span><select name="subject_id" ${isAdmin ? '' : 'disabled'}><option value="">— เลือกวิชา —</option>${opt(o.subjects, c.subject_id)}</select></label>
           <label class="f"><span>ครูผู้สอน</span><select name="teacher_id" ${isAdmin ? '' : 'disabled'}><option value="">— เลือกครู —</option>${opt(o.teachers, c.teacher_id)}</select></label>
@@ -2409,13 +2417,14 @@ App.pages.settings = {
           <label class="check"><input type="checkbox" name="is_active" ${c.is_active !== false ? 'checked' : ''}> เปิดใช้งาน</label>
         </div>
         ${isAdmin ? '<p class="note" style="padding:0 16px 12px;margin:0">ยังไม่มีวิชาหรือครูในรายการ? เพิ่มได้ที่แท็บ "ข้อมูลทั้งหมด" › วิชา / ผู้ใช้งาน</p>' : ''}</div>
-        <div class="stats"><h3>ห้องที่เรียนวิชานี้ <small class="muted">(งานและคะแนนใช้ร่วมกันทุกห้อง)</small></h3>
+        <div class="stats"><h3><span class="step">2</span>ห้องที่เรียนวิชานี้ <small class="muted" data-room-count></small></h3>
+          <p class="note" style="padding:10px 16px 0;margin:0">กดที่ห้องเพื่อเลือก/เอาออก (ห้องสีเขียว = เรียนวิชานี้) — งานและคะแนนเต็มใช้ร่วมกันทุกห้อง</p>
           <div class="room-checks">${o.classrooms.map(r => `<label><input type="checkbox" name="classroom_ids" data-multi="1" value="${r.value}" ${roomIds.indexOf(r.value) >= 0 ? 'checked' : ''}> ${esc(r.label)}</label>`).join('') || '<span class="note">ยังไม่มีห้องเรียนในปีการศึกษานี้ — สร้างที่แท็บ "ห้องเรียน"</span>'}</div></div>
         ${isNew ? '<p class="note">รายวิชาใหม่จะได้สัดส่วนคะแนนเริ่มต้น ก่อนกลางภาค 35 / หลังกลางภาค 35 / สอบกลางภาค 15 / สอบปลายภาค 15</p>' : `
-        <div class="stats"><h3>สัดส่วนคะแนน <small class="muted" data-total>รวม ${fmt(total)}</small></h3><div class="form-grid">
+        <div class="stats"><h3><span class="step">3</span>สัดส่วนคะแนน <small class="muted" data-total>รวม ${fmt(total)}</small></h3><div class="form-grid">
           ${c.categories.map(k => `<label class="f"><span>${esc(k.name)}${k.kind === 'EXAM' ? ' (สอบ)' : ''}</span><input type="number" step="0.5" min="0" data-cat="${k.category_id}" data-name="${esc(k.name)}" value="${k.weight}"></label>`).join('')}
         </div><p class="note" style="padding:0 16px 12px;margin:0">เพิ่ม/ลบหมวด หรือเปลี่ยนชนิดหมวด ได้ที่หน้า รายละเอียดงาน › สัดส่วนคะแนน</p></div>`}
-        <div class="bar"><span class="grow"></span><button class="btn primary" type="submit">${isNew ? 'สร้างรายวิชา' : 'บันทึก'}</button></div>
+        <div class="bar save-row"><span class="grow" data-dirty></span><button class="btn primary" type="submit">${isNew ? 'สร้างรายวิชา' : 'บันทึก'}</button></div>
       </form>`}`;
     const cs = $('[data-course]', el);
     if (cs) cs.onchange = () => go('settings', { section: 'course', course_id: cs.value });
@@ -2423,11 +2432,25 @@ App.pages.settings = {
     if (nb) nb.onclick = () => go('settings', { section: 'course', course_id: 'new' });
     const form = $('[data-course-form]', el);
     if (!form) return;
-    form.addEventListener('input', () => {
+    const paintRooms = () => {
+      const boxes = $$('[name=classroom_ids]', form);
+      boxes.forEach(i => i.parentElement.classList.toggle('on', i.checked));
+      const rc = $('[data-room-count]', form);
+      if (rc) rc.textContent = boxes.length ? '(เลือก ' + boxes.filter(i => i.checked).length + ' จาก ' + boxes.length + ' ห้อง)' : '';
+    };
+    paintRooms();
+    const onEdit = () => {
       const t = $$('[data-cat]', form).reduce((s, i) => s + (Number(i.value) || 0), 0);
       const tt = $('[data-total]', form);
-      if (tt) tt.innerHTML = 'รวม ' + fmt(t) + (t !== 100 ? ' — <span class="redpen">ควรรวมได้ 100</span>' : '');
-    });
+      if (tt) tt.innerHTML = 'รวม ' + fmt(t) + (t !== 100 ? ' — <span class="redpen">ต้องรวมได้ 100</span>' : '');
+      paintRooms();
+      if (!isNew) {
+        $('[data-dirty]', form).innerHTML = '<span class="redpen">● แก้ไขแล้ว ยังไม่ได้บันทึก — กดปุ่ม "บันทึก"</span>';
+        form.classList.add('dirty');
+      }
+    };
+    form.addEventListener('input', onEdit);
+    form.addEventListener('change', onEdit);
     form.onsubmit = async e => {
       e.preventDefault();
       const v = formData(form);
