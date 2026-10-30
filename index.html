@@ -1,0 +1,2714 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Classroom</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --board: #1d4d3f;
+    --board-2: #2a6654;
+    --board-ink: #e9f1ec;
+    --paper: #f6f7f4;
+    --surface: #ffffff;
+    --ink: #1c2733;
+    --muted: #5d6b78;
+    --rule: #d6ddd5;
+    --rule-strong: #b9c4b8;
+    --redpen: #c0392b;
+    --redpen-bg: #fbecea;
+    --ok: #2e7d4f;
+    --ok-bg: #e7f3ec;
+    --late: #a86a12;
+    --late-bg: #fbf1de;
+    --excused: #6b7280;
+    --hl: #f6d84a;
+    --radius: 6px;
+    --display: 'Anuphan', 'Sarabun', system-ui, sans-serif;
+    --body: 'Sarabun', 'Anuphan', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 16px/1.6 var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: var(--board-2); }
+  :focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+  .num { font-family: var(--display); font-variant-numeric: tabular-nums; }
+
+  /* ---------- layout: binder spine + page ---------- */
+  .app { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh;
+    background: linear-gradient(to right, var(--board) 230px, #163d32 230px, #163d32 236px, transparent 236px); }
+  .spine {
+    background: var(--board); color: var(--board-ink);
+    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+    border-right: 6px solid #163d32;
+  }
+  .brand { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .brand b { display: block; font: 600 18px/1.3 var(--display); }
+  .brand small { opacity: .75; font-size: 13px; }
+  .nav { flex: 1; overflow-y: auto; padding: 10px 0; }
+  .nav button {
+    display: flex; gap: 12px; align-items: center; width: 100%;
+    padding: 9px 20px; background: none; border: 0; cursor: pointer;
+    color: var(--board-ink); text-align: left; font: 500 15px/1.4 var(--display);
+    border-left: 4px solid transparent;
+  }
+  .nav button:hover { background: rgba(255,255,255,.07); }
+  .nav button[aria-current="page"] { background: rgba(255,255,255,.12); border-left-color: var(--hl); }
+  .nav .ico { width: 22px; text-align: center; }
+  .nav hr { border: 0; border-top: 1px solid rgba(255,255,255,.12); margin: 8px 20px; }
+  .who { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.12); font-size: 14px; }
+  .who b { display: block; font-family: var(--display); font-weight: 600; }
+  .who button { margin-top: 8px; background: none; border: 1px solid rgba(255,255,255,.35); color: var(--board-ink); border-radius: var(--radius); padding: 3px 10px; cursor: pointer; font-size: 13px; }
+
+  .main { min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    display: flex; align-items: center; gap: 12px; padding: 14px 32px;
+    border-bottom: 1px solid var(--rule); background: var(--surface);
+    position: sticky; top: 0; z-index: 5;
+  }
+  .topbar .ttl { flex: 1; min-width: 0; }
+  .topbar h1 { margin: 0; font: 600 22px/1.25 var(--display); }
+  .topbar .term { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .topbar .ctx { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; justify-content: flex-end; }
+  .topbar .ctx select { min-height: 34px; padding: 4px 28px 4px 10px; font-size: 14px; max-width: 360px; }
+  .topbar .ctx label.f > span { font-size: 12px; }
+  .menu-btn { display: none; background: none; border: 1px solid var(--rule); border-radius: var(--radius); padding: 4px 10px; cursor: pointer; }
+  #page { padding: 24px 32px 64px; max-width: 1400px; width: 100%; }
+
+  /* ---------- controls ---------- */
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin-bottom: 20px; }
+  .bar .grow { flex: 1; }
+  label.f { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+  label.f > span { font-family: var(--display); }
+  input[type=text], input[type=number], input[type=date], input[type=password], input[type=search], input[type=email], select, textarea {
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--radius);
+    padding: 7px 10px; min-height: 38px; font-size: 15px; color: var(--ink);
+  }
+  select { padding-right: 28px; max-width: 100%; }
+  label.f { min-width: 0; max-width: 100%; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  textarea { min-height: 120px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--board-2); box-shadow: 0 0 0 3px rgba(246,216,74,.6); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+    min-height: 38px; padding: 6px 14px; border-radius: var(--radius); cursor: pointer;
+    border: 1px solid var(--rule-strong); background: var(--surface); font: 500 15px/1.2 var(--display);
+    white-space: nowrap; text-decoration: none; color: var(--ink);
+  }
+  .btn:hover { border-color: var(--board-2); }
+  .btn.primary { background: var(--board); border-color: var(--board); color: #fff; }
+  .btn.primary:hover { background: var(--board-2); }
+  .btn.danger { color: var(--redpen); border-color: #e5b3ad; }
+  .btn.small { min-height: 30px; padding: 3px 10px; font-size: 14px; }
+  .btn.ghost { border-color: transparent; background: none; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ---------- sections ---------- */
+  .section { margin: 0 0 32px; }
+  .section > h2 { font: 600 18px/1.3 var(--display); margin: 0 0 12px; display: flex; align-items: baseline; gap: 10px; }
+  h2 small { font: 400 14px var(--body); color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .muted { color: var(--muted); }
+  .empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--rule-strong); border-radius: var(--radius); background: var(--surface); }
+  .note { font-size: 14px; color: var(--muted); }
+
+  /* ledger band: แถวตัวเลขหลักของแดชบอร์ด */
+  .ledger {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    background: var(--surface); border: 1px solid var(--rule); border-top: 4px solid var(--board);
+    border-radius: 0 0 var(--radius) var(--radius); margin-bottom: 32px;
+  }
+  .ledger > div { padding: 18px 22px 16px; border-left: 1px solid var(--rule); }
+  .ledger > div:first-child { border-left: 0; }
+  .ledger .v { font: 600 40px/1.1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .ledger .v small { font-size: 18px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .ledger .k { color: var(--muted); font-size: 15px; margin-top: 4px; }
+  .ledger .v.warn { color: var(--redpen); }
+
+  /* stat list: ตัวเลขย่อยแบบสมุดบัญชี */
+  .stats { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+  .stats > div { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 16px; border-top: 1px solid var(--rule); }
+  .stats > div:first-child { border-top: 0; }
+  .stats .k { color: var(--ink); }
+  .stats .v { font: 600 18px var(--display); font-variant-numeric: tabular-nums; }
+  .stats h3 { margin: 0; padding: 10px 16px; font: 600 15px var(--display); background: #eef2ed; border-bottom: 1px solid var(--rule); border-radius: var(--radius) var(--radius) 0 0; }
+
+  /* red pen: สิ่งที่ต้องตาม */
+  .redpen { color: var(--redpen); text-decoration: underline wavy var(--redpen); text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+  .tag { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 13px; line-height: 22px; background: #eef2ed; color: var(--ink); white-space: nowrap; }
+  .tag.red { background: var(--redpen-bg); color: var(--redpen); }
+  .tag.ok { background: var(--ok-bg); color: var(--ok); }
+  .tag.late { background: var(--late-bg); color: var(--late); }
+
+  /* grade columns */
+  .gbars { display: flex; align-items: flex-end; gap: 8px; height: 190px; padding: 12px 16px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius) var(--radius) 0 0; }
+  .gbar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+  .gbar i { display: block; width: 100%; max-width: 44px; background: var(--board-2); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .gbar.special i { background: var(--redpen); }
+  .gbar span { font: 600 14px var(--display); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .glabels { display: flex; gap: 8px; padding: 6px 16px 10px; background: var(--surface); border: 1px solid var(--rule); border-top: 2px solid var(--ink); border-radius: 0 0 var(--radius) var(--radius); }
+  .glabels span { flex: 1; text-align: center; font: 600 15px var(--display); }
+  .glabels span.special { color: var(--redpen); }
+
+  /* ---------- tables ---------- */
+  .tbl-wrap { overflow: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+  table.t { border-collapse: collapse; width: 100%; font-size: 15px; }
+  .t th, .t td { padding: 8px 12px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: middle; }
+  .t thead th { font: 600 14px/1.3 var(--display); color: var(--board); background: #f1f4f0; position: sticky; top: 0; z-index: 2; border-bottom: 2px solid var(--rule-strong); }
+  .t tbody tr:hover td { background: #fafbf8; }
+  .t thead th { white-space: nowrap; }
+  .t a { color: inherit; text-decoration: none; }
+  .t a:hover { color: var(--board-2); text-decoration: underline; }
+  .t td.n, .t th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .t td.c, .t th.c { text-align: center; }
+  .t tr.clickable { cursor: pointer; }
+  .t tr.sel td { background: #fdf6d3 !important; }
+  .t .roll { color: var(--muted); width: 56px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* gradebook matrix */
+  .matrix { font-size: 14px; }
+  .matrix th, .matrix td { padding: 6px 8px; border-right: 1px solid var(--rule); white-space: nowrap; }
+  .matrix .stick1 { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+  .matrix .stick1 { width: 56px; min-width: 56px; }
+  .matrix .stick2 { position: sticky; left: 56px; background: var(--surface); z-index: 1; min-width: 190px; border-right: 2px solid var(--rule-strong); }
+  .matrix .sr1, .matrix .sr2, .matrix .sr3 { position: sticky; background: var(--surface); z-index: 1; }
+  .matrix .sr1 { right: 0; width: 56px; min-width: 56px; }
+  .matrix .sr2 { right: 56px; width: 60px; min-width: 60px; }
+  .matrix .sr3 { right: 116px; width: 92px; min-width: 92px; border-left: 2px solid var(--rule-strong); }
+  .matrix thead .stick1, .matrix thead .stick2, .matrix thead .sr1, .matrix thead .sr2, .matrix thead .sr3 { z-index: 3; background: #f1f4f0; }
+  .matrix th.asg { cursor: pointer; max-width: 110px; min-width: 70px; white-space: normal; vertical-align: bottom; text-align: center; }
+  .matrix th.asg:hover { background: #fdf6d3; }
+  .matrix th.asg .tt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 500; color: var(--ink); }
+  .matrix th.asg .mx { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .matrix th.cat { text-align: center; font-size: 13px; color: var(--muted); background: #f7f9f6; }
+  .t td.cell { text-align: center; font-variant-numeric: tabular-nums; }
+  .cell.s-SUBMITTED { color: var(--ok); }
+  .cell.s-LATE { color: var(--late); background: var(--late-bg); }
+  .cell.s-MISSING, .cell.miss { color: var(--redpen); background: var(--redpen-bg); font-weight: 600; }
+  .cell.s-EXCUSED { color: var(--excused); }
+  .cell.pending { color: var(--muted); }
+
+  /* segmented status buttons (เช็กชื่อ/ส่งงาน) */
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; border-left: 1px solid var(--rule); background: none; min-width: 42px; min-height: 36px; padding: 0 10px; cursor: pointer; font: 600 15px var(--display); color: var(--muted); }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { color: #fff; }
+  .seg button[data-v="PRESENT"][aria-pressed="true"], .seg button[data-v="SUBMITTED"][aria-pressed="true"] { background: var(--ok); }
+  .seg button[data-v="LATE"][aria-pressed="true"] { background: var(--late); }
+  .seg button[data-v="ACTIVITY"][aria-pressed="true"] { background: var(--board-2); }
+  .seg button[data-v="LEAVE"][aria-pressed="true"], .seg button[data-v="EXCUSED"][aria-pressed="true"] { background: var(--excused); }
+  .seg button[data-v="ABSENT"][aria-pressed="true"], .seg button[data-v="MISSING"][aria-pressed="true"] { background: var(--redpen); }
+  .entry td { padding-top: 6px; padding-bottom: 6px; }
+  .entry input.score { width: 84px; text-align: right; }
+  .entry input.cmt { width: 100%; min-width: 140px; }
+  .entry tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--hl); }
+
+  .savebar {
+    position: sticky; bottom: 0; z-index: 4; display: flex; gap: 12px; align-items: center; justify-content: flex-end;
+    padding: 12px 16px; margin-top: 16px; background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--board); border-radius: var(--radius);
+  }
+  .savebar .grow { flex: 1; color: var(--muted); }
+
+  /* tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--rule); margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs button { background: none; border: 0; padding: 8px 14px; cursor: pointer; font: 500 15px var(--display); color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .tabs button[aria-selected="true"] { color: var(--board); border-bottom-color: var(--board); }
+
+  /* profile */
+  .profile-head { display: flex; gap: 20px; align-items: baseline; flex-wrap: wrap; margin-bottom: 20px; }
+  .profile-head h2 { margin: 0; font: 600 26px var(--display); }
+  .course-block { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); margin-bottom: 20px; }
+  .course-block header { display: grid; grid-template-columns: 1fr auto; gap: 8px 20px; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
+  .course-block header h3 { margin: 0; font: 600 17px var(--display); }
+  .course-block .grade { font: 700 34px/1 var(--display); text-align: right; }
+  .course-block .facts { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+  .course-block .tbl-wrap { border: 0; border-radius: 0 0 var(--radius) var(--radius); }
+
+  /* modal + toast */
+  .modal-bg { position: fixed; inset: 0; background: rgba(20,32,28,.45); display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; z-index: 50; overflow-y: auto; }
+  .modal { background: var(--surface); border-radius: 10px; width: 100%; max-width: 560px; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
+  .modal.wide { max-width: 860px; }
+  .modal header { padding: 16px 20px; border-bottom: 1px solid var(--rule); font: 600 18px var(--display); }
+  .modal .body { padding: 18px 20px; display: grid; gap: 14px; }
+  .modal footer { padding: 12px 20px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; gap: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60; display: grid; gap: 8px; }
+  .toast { background: var(--ink); color: #fff; padding: 10px 18px; border-radius: var(--radius); font-size: 15px; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+  .toast.err { background: var(--redpen); }
+  .toast.busy::before, button.is-busy::before { content: ''; display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  button.is-busy { cursor: progress; }
+  #busybar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 70; overflow: hidden; pointer-events: none; display: none; }
+  #busybar.on { display: block; }
+  #busybar::before { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; background: #f6d84a; animation: busybar 1.1s ease-in-out infinite; }
+  @keyframes busybar { from { left: -40%; } to { left: 100%; } }
+  .loading { padding: 40px; text-align: center; color: var(--muted); }
+  .loading::before { content: ''; display: inline-block; width: 18px; height: 18px; border: 3px solid var(--rule); border-top-color: var(--board); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -3px; margin-right: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* login */
+  .login { min-height: 100vh; display: grid; grid-template-columns: minmax(280px, 42%) 1fr; }
+  .login .side { background: var(--board); color: var(--board-ink); padding: 48px; display: flex; flex-direction: column; justify-content: flex-end; border-right: 6px solid #163d32; }
+  .login .side h1 { font: 700 44px/1.15 var(--display); margin: 0 0 12px; }
+  .login .side p { margin: 0; opacity: .8; max-width: 34ch; }
+  .login form { align-self: center; justify-self: center; width: min(380px, 100%); padding: 32px 24px; display: grid; gap: 14px; }
+  .login form h2 { margin: 0 0 4px; font: 600 24px var(--display); }
+  .err-text { color: var(--redpen); font-size: 14px; min-height: 20px; }
+
+  @media (max-width: 1100px) {
+    .cols-3 { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; background: none; }
+    .spine { position: fixed; inset: 0 auto 0 0; width: 260px; transform: translateX(-100%); transition: transform .2s; z-index: 40; }
+    .app.nav-open .spine { transform: none; box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+    .menu-btn { display: inline-flex; }
+    .topbar { padding: 10px 16px; }
+    .topbar h1 { font-size: 19px; }
+    #page { padding: 16px 16px 64px; }
+    .cols, .cols-3, .grid2 { grid-template-columns: 1fr; gap: 20px; }
+    .ledger { grid-template-columns: repeat(2, 1fr); }
+    .ledger > div { border-left: 0; border-top: 1px solid var(--rule); }
+    .ledger > div:nth-child(even) { border-left: 1px solid var(--rule); }
+    .ledger > div:nth-child(-n+2) { border-top: 0; }
+    .ledger > div:last-child { grid-column: 1 / -1; }
+    .ledger .v { font-size: 32px; }
+    .login { grid-template-columns: 1fr; }
+    .login .side { padding: 28px 24px; }
+    .login .side h1 { font-size: 30px; }
+    .topbar .term { display: none; }
+    .bar > label.pick { flex: 1 1 100%; }
+    .bar > label.pick select { width: 100%; }
+    .matrix .sr1, .matrix .sr2, .matrix .sr3 { position: static; }
+    .matrix .stick2 { min-width: 140px; }
+  }
+  /* มือถือ: แถวกรอกข้อมูลเรียงเป็นบล็อก ชื่ออยู่บน ปุ่มสถานะอยู่ล่าง */
+  @media (max-width: 640px) {
+    .t.entry thead { display: none; }
+    .t.entry tr { display: grid; grid-template-columns: 34px auto 1fr; gap: 6px 10px; padding: 10px 10px 12px 4px; border-bottom: 1px solid var(--rule); align-items: center; }
+    .t.entry td { border: 0; padding: 0; }
+    .t.entry td.roll { grid-row: 1 / span 4; align-self: start; padding-top: 2px; width: auto; text-align: left; }
+    .t.entry td.e-name, .t.entry td.e-st, .t.entry td.e-cmt { grid-column: 2 / -1; }
+    .t.entry td.e-score { grid-column: 2; }
+    .t.entry td.e-date { grid-column: 3; }
+    .t.entry input.cmt { width: 100%; }
+    .t.entry .seg { display: flex; }
+    .t.entry .seg button { flex: 1; min-width: 0; padding: 0 4px; }
+    .t.entry input.cmt { min-width: 0; }
+    .t.entry tr.changed td:first-child { box-shadow: none; }
+    .t.entry tr.changed { box-shadow: inset 4px 0 0 var(--hl); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media print {
+    .spine, .topbar, .bar, .btn, .savebar, .tabs, .no-print { display: none !important; }
+    .app { display: block; }
+    #page { padding: 0; }
+    body { background: #fff; font-size: 13px; }
+    .tbl-wrap { overflow: visible; border: 0; }
+    .t thead th { position: static; }
+    .print-only { display: block !important; }
+  }
+  .print-only { display: none; }
+
+  /* ---------- ส่วนที่เพิ่มให้เหมือนชีตเดิม ---------- */
+  .page-sub { margin: -6px 0 16px; color: var(--muted); }
+  .ledger .v.sm { font-size: 22px; }
+  .ledger.band { margin-bottom: 0; border-top-width: 3px; }
+  .ledger.band > div { padding: 12px 16px; }
+  .ledger.band .k { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
+  .ledger.band .v { font-size: 26px; }
+  .ledger .k + .v { margin-top: 2px; }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 18px; }
+  .donut-wrap { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; min-height: 186px; }
+  .donut { width: 168px; height: 168px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  .donut > div { width: 108px; height: 108px; border-radius: 50%; background: var(--surface); display: grid; place-content: center; text-align: center; }
+  .donut b { font: 700 24px var(--display); }
+  .donut small { color: var(--muted); }
+  .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .legend li { display: flex; align-items: center; gap: 10px; }
+  .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .legend b { font-family: var(--display); margin-left: auto; padding-left: 16px; font-variant-numeric: tabular-nums; }
+
+  .hero { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: var(--board); color: var(--board-ink); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; }
+  .hero b { font: 700 22px var(--display); }
+  .hero p { margin: 2px 0 0; opacity: .85; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chips span { background: rgba(255,255,255,.12); border-radius: 999px; padding: 4px 14px; }
+  .home-top { display: grid; grid-template-columns: 1fr 280px; gap: 20px; margin-bottom: 28px; align-items: start; }
+  .tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .tile { text-align: left; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; cursor: pointer;
+    display: grid; gap: 4px; font: inherit; color: var(--ink); }
+  .tile:hover { border-color: var(--board-2); }
+  .tile .ico { font-size: 24px; }
+  .tile b { font: 600 16px var(--display); }
+  .tile small { color: var(--muted); line-height: 1.4; min-height: 2.8em; }
+  .tile em { font-style: normal; color: var(--board-2); font: 500 14px var(--display); }
+
+  .weights { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; }
+  .weights span { white-space: nowrap; }
+  .weights em { font-style: normal; color: var(--muted); font-size: 13px; }
+  .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .room-btn { background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 16px 10px; cursor: pointer; font: 600 17px var(--display); color: var(--ink); }
+  .room-btn:hover { border-color: var(--board); background: #eef5f1; }
+  .banner { background: #eef5f1; border: 1px solid var(--rule); border-left: 4px solid var(--board); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; display: grid; gap: 2px; }
+  .banner span { color: var(--muted); font-size: 14px; }
+
+  .grid-wrap { max-height: calc(100vh - 230px); }
+  .matrix th.asg .no { display: block; font: 700 13px var(--display); color: var(--board); }
+  .matrix th.asg { min-width: 46px; max-width: 76px; font-size: 12px; padding: 6px 4px; }
+  .matrix th.asg.wide { min-width: 64px; }
+  .matrix th.asg .tt { font-weight: 400; color: var(--muted); -webkit-line-clamp: 2; }
+  .matrix th.mxrow { text-align: center; font: 400 12px var(--body); color: var(--muted); background: #f7f9f6; position: static; }
+  .matrix th.cat { position: static; }
+  .t td.tick, .t td.dcell, .t td.am { text-align: center; cursor: pointer; padding: 6px 4px; user-select: none; font-variant-numeric: tabular-nums; }
+  .tick.yes { color: var(--ok); }
+  .tick.late { color: var(--late); background: var(--late-bg); }
+  .tick.no { color: var(--redpen); background: var(--redpen-bg); }
+  .tick.wait { color: var(--rule-strong); }
+  .tick.ex { color: var(--excused); }
+  .dcell { font-size: 13px; white-space: nowrap; }
+  .dcell.yes { color: var(--ok); }
+  .dcell.late { color: var(--late); background: var(--late-bg); font-weight: 600; }
+  .am { min-width: 34px; font: 600 14px var(--display); }
+  .am.m-PRESENT { color: var(--ok); }
+  .am.m-LATE { color: var(--late); background: var(--late-bg); }
+  .am.m-ACTIVITY { color: var(--board-2); }
+  .am.m-LEAVE { color: var(--excused); background: #f1f2f3; }
+  .am.m-ABSENT { color: var(--redpen); background: var(--redpen-bg); }
+  .t td.changed, .t td.in.changed { box-shadow: inset 0 0 0 2px var(--hl); }
+  .matrix th.sess { cursor: pointer; min-width: 34px; font-size: 11px; padding: 4px 2px; text-align: center; white-space: normal; }
+  .matrix th.sess .no { display: block; font: 700 13px var(--display); color: var(--board); }
+  .matrix th.sess .mx { color: var(--muted); }
+  .matrix th.sess:hover { background: #fdf6d3; }
+  .matrix .sum { background: #f7f9f6; white-space: nowrap; }
+  .scores td.in { padding: 2px; }
+  .scores td.in input { width: 44px; min-height: 30px; padding: 2px 4px; text-align: center; font-size: 14px; border-color: var(--rule); border-radius: 4px; }
+  input.invalid { border-color: var(--redpen) !important; background: var(--redpen-bg); }
+  .picker { align-items: end; }
+  .chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; padding: 4px 12px; cursor: pointer; font: 500 14px var(--display); color: var(--ink); }
+  .chip span { font: 400 13px var(--body); color: var(--muted); }
+  .chip:hover { border-color: var(--board-2); }
+  .missing-list { font-size: 13px; color: var(--redpen); max-width: 520px; }
+  .report-head { text-align: center; margin-bottom: 16px; }
+  .report-head h2 { margin: 0 0 6px; font: 600 22px var(--display); }
+  .report-head .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; color: var(--muted); }
+  .sign { display: none; }
+  tr.top td { background: #fdf8e1; }
+  .profile-head { align-items: center; }
+  .profile-head .grow { flex: 1; }
+
+  .settings-form { display: grid; gap: 18px; margin-bottom: 20px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 18px; padding: 14px 16px; align-items: end; }
+  label.check { display: flex; gap: 8px; align-items: center; min-height: 38px; }
+  .room-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; padding: 14px 16px; }
+  .room-checks label { display: flex; gap: 6px; align-items: center; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: 6px 10px; cursor: pointer; }
+  .tabs.sub { border-bottom-width: 1px; }
+  .tabs.sub button { font-size: 14px; padding: 6px 10px; }
+  .stats h3 small { font-weight: 400; }
+
+  /* ---------- ตั้งค่าระบบ › ฐานข้อมูล ---------- */
+  .db-hero { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--board); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 28px; }
+  .db-hero.away { border-left-color: var(--late); }
+  .db-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .db-head .ico { font-size: 26px; line-height: 1; }
+  .db-head h2 { margin: 0; font: 600 21px/1.3 var(--display); overflow-wrap: anywhere; }
+  .db-head .grow { flex: 1; }
+  .db-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 24px; margin: 16px 0 0; }
+  .db-meta > div { min-width: 0; }
+  .db-meta dt { font-size: 13px; color: var(--muted); font-family: var(--display); }
+  .db-meta dd { margin: 2px 0 0; font-weight: 500; overflow-wrap: anywhere; }
+  .mono { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 13px; }
+  .copy { border: 0; background: none; color: var(--board); cursor: pointer; font: 500 13px var(--display); padding: 0 0 0 6px; text-decoration: underline; }
+  .db-cap { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 28px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  .db-cap .lbl { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; margin-bottom: 6px; }
+  .db-cap .lbl b { font: 600 14px var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meter { height: 8px; background: #e6ebe4; border-radius: 999px; overflow: hidden; }
+  .meter > i { display: block; height: 100%; background: var(--board); border-radius: 999px; min-width: 3px; }
+  .meter.warn > i { background: var(--late); }
+  .meter.bad > i { background: var(--redpen); }
+  .db-away { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 16px; padding: 10px 14px; background: var(--late-bg); border-radius: var(--radius); font-size: 14px; }
+  .db-away span { flex: 1; min-width: 200px; }
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .tool { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .tool h4 { margin: 0; font: 600 15px var(--display); }
+  .tool p { margin: 0 0 6px; font-size: 14px; color: var(--muted); flex: 1; }
+  .tool .btn { align-self: flex-start; }
+  .tool.danger { border-color: #e9c2bd; }
+  .tool.danger h4 { color: var(--redpen); }
+  .switch { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+  .switch > div { padding: 16px; }
+  .switch > div + div { border-top: 1px solid var(--rule); }
+  .switch h4 { margin: 0 0 4px; font: 600 15px var(--display); }
+  .switch .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 10px; }
+  .switch .row label.f { flex: 1; min-width: 220px; }
+  .inspect { margin-top: 14px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); display: grid; gap: 8px; }
+  .inspect .t1 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-weight: 600; }
+  .problems { margin: 0; padding-left: 20px; max-height: 50vh; overflow: auto; font-size: 14px; }
+  .problems li { margin: 2px 0; }
+  .t td.mono, .t th.mono { white-space: nowrap; }
+  @media (max-width: 640px) {
+    .db-hero { padding: 14px; }
+    .db-head h2 { font-size: 18px; }
+    .db-tables .grp { display: none; }
+  }
+
+  @media (max-width: 1100px) {
+    .tiles { grid-template-columns: repeat(3, 1fr); }
+    .home-top { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px) {
+    .topbar { flex-wrap: wrap; }
+    .topbar .ctx { width: 100%; justify-content: stretch; }
+    .topbar .ctx label.f { flex: 1; }
+    .topbar .ctx select { max-width: none; width: 100%; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .ledger.band { grid-template-columns: repeat(2, 1fr) !important; }
+    .ledger[style*="repeat"] { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+  @media print {
+    .sign { display: flex !important; justify-content: space-around; margin-top: 48px; text-align: center; }
+    .report-head .facts { color: #000; }
+    .grid-wrap { max-height: none; }
+    .matrix .stick1, .matrix .stick2 { position: static; }
+  }
+</style>
+
+</head>
+<body>
+<script>
+  (function () {
+    var API = "https://script.google.com/macros/s/AKfycbxDrYnTlNV-vegpgXKCyxoM2g0DE0Veb_RMY6iLAlA04cr81PjdZa71o_BtjG3lZWMU3A/exec";
+    function runner(ok, fail) {
+      return new Proxy({}, { get: function (_, name) {
+        if (name === 'withSuccessHandler') return function (h) { return runner(h, fail); };
+        if (name === 'withFailureHandler') return function (h) { return runner(ok, h); };
+        return function (action, payload, token) {
+          if (name !== 'api') { if (fail) fail(new Error('ไม่รองรับคำสั่ง ' + name)); return; }
+          fetch(API, { method: 'POST', body: JSON.stringify({ action: action, payload: payload, token: token }) })
+            .then(function (r) { if (!r.ok) throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (' + r.status + ') กรุณาลองใหม่'); return r.text(); })
+            .then(function (raw) { if (ok) ok(raw); })
+            .catch(function (e) { if (fail) fail(e && e.message === 'Failed to fetch' ? new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่') : e); });
+        };
+      } });
+    }
+    window.google = { script: { run: runner(null, null) } };
+  })();
+  </script>
+  <div id="root"><div class="loading">กำลังเปิดระบบ…</div></div>
+  <div id="busybar" aria-hidden="true"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="modal"></div>
+  <script>
+'use strict';
+/* ==========================================================================
+ * JsCore — ตัวกลางเรียก API, โครงหน้า, เมนู 16 รายการ (ตามชีตเดิม), ตัวเลือกรายวิชา/ห้อง, modal
+ * ========================================================================== */
+const App = {
+  token: null,
+  boot: null,
+  page: null,
+  params: {},
+  dirty: false,
+  pages: {},
+  ctx: { course_id: null, classroom_id: '' }
+};
+
+const Store = {
+  get(k, d) { try { const v = localStorage.getItem('sc_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('sc_' + k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
+  del(k) { try { localStorage.removeItem('sc_' + k); } catch (e) { /* ignore */ } }
+};
+
+/* ---------------- helpers ---------------- */
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+function thDate(ymd, full) {
+  if (!ymd) return '-';
+  const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
+  if (!y) return esc(ymd);
+  return d + ' ' + TH_MONTHS[m - 1] + ' ' + (full ? (y + 543) : String(y + 543).slice(-2));
+}
+function thShort(ymd) {
+  if (!ymd) return '';
+  const [, m, d] = String(ymd).split('-').map(Number);
+  return d + ' ' + TH_MONTHS[m - 1];
+}
+function thDateTime(s) { return s ? thDate(s, true) + ' • ' + String(s).slice(11, 16) : '-'; }
+function fmt(n, d) {
+  if (n === null || n === undefined || n === '' || isNaN(n)) return '-';
+  return Number(n).toLocaleString('th-TH', { maximumFractionDigits: d === undefined ? 1 : d });
+}
+function pct(n) { return n === null || n === undefined ? '-' : fmt(n, 1) + '%'; }
+function daysFrom(ymd) {
+  if (!ymd) return null;
+  const a = new Date(App.boot.today + 'T00:00:00Z'), b = new Date(ymd + 'T00:00:00Z');
+  return Math.round((b - a) / 86400000);
+}
+function dueText(ymd) {
+  const d = daysFrom(ymd);
+  if (d === null) return 'ไม่มีกำหนด';
+  if (d === 0) return 'วันนี้';
+  if (d === 1) return 'พรุ่งนี้';
+  if (d > 0) return 'อีก ' + d + ' วัน';
+  return 'เลยมา ' + (-d) + ' วัน';
+}
+/** แสดงเกรดสุดท้าย: ร / มส / 0 = สีแดง */
+function resultTag(result) {
+  if (!result || result === '-') return '<span class="muted">-</span>';
+  if (result === 'ร' || result === 'มส' || result === '0') return `<span class="tag red">${esc(result)}</span>`;
+  return `<b class="num">${esc(result)}</b>`;
+}
+const SUBMIT_STATUS = {
+  COMPLETE: ['✅ ส่งครบ', 'ok'], OK: ['🟢 ปกติ', 'ok'], WATCH: ['🟠 เฝ้าระวัง', 'late'], RISK: ['🔴 เสี่ยง', 'red'], '-': ['-', '']
+};
+function submitTag(code) {
+  const s = SUBMIT_STATUS[code] || SUBMIT_STATUS['-'];
+  return `<span class="tag ${s[1]}">${s[0]}</span>`;
+}
+function attTag(status) {
+  if (!status) return '<span class="muted">-</span>';
+  return status === 'มส' ? '<span class="tag red">มส</span>' : `<span class="tag ok">${esc(status)}</span>`;
+}
+function $(sel, el) { return (el || document).querySelector(sel); }
+function $$(sel, el) { return Array.from((el || document).querySelectorAll(sel)); }
+function formData(form) {
+  const o = {};
+  $$('input, select, textarea', form).forEach(i => {
+    if (!i.name) return;
+    if (i.type === 'checkbox' && i.dataset.multi) { (o[i.name] = o[i.name] || []); if (i.checked) o[i.name].push(i.value); return; }
+    o[i.name] = i.type === 'checkbox' ? i.checked : i.value;
+  });
+  return o;
+}
+
+/* ---------------- API ---------------- */
+/**
+ * สถานะ "กำลังทำงาน" ระหว่างรอเซิร์ฟเวอร์ (Apps Script ตอบช้า 1–5 วินาที)
+ * - แถบวิ่งบนสุดของจอ: ทุกคำสั่ง
+ * - ป้าย "กำลังบันทึก…" มุมล่าง: คำสั่งที่เขียนข้อมูล
+ * - ปุ่มที่กด: ล็อก + ไอคอนหมุน กันกดซ้ำ
+ */
+const READ_ACTION = /^bootstrap$|\.(get|list|me|roster|student|finals|sheet|grid|search|profile|general|courseOptions|meta|auditLogs|info|inspect|validate)$/;
+const BUSY_TEXT = { 'session.login': 'กำลังเข้าสู่ระบบ…', 'session.logout': 'กำลังออกจากระบบ…', 'database.backup': 'กำลังสำรองข้อมูล…', 'database.exportCsv': 'กำลังส่งออกไฟล์…' };
+const Busy = {
+  n: 0, writes: 0, pill: null, timer: null,
+  start(action) {
+    const write = !READ_ACTION.test(action);
+    const a = document.activeElement;
+    const btn = a && a.tagName === 'BUTTON' ? a : null;
+    const lock = btn && !btn.disabled; // ปุ่มที่หน้าเพจล็อกเองอยู่แล้ว ให้หน้าเพจปลดเอง
+    if (btn) { btn.classList.add('is-busy'); if (lock) btn.disabled = true; }
+    this.n++;
+    if (write) this.writes++;
+    $('#busybar').classList.add('on');
+    if (write && !this.pill && !this.timer) {
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        if (!this.writes) return;
+        this.pill = document.createElement('div');
+        this.pill.className = 'toast busy';
+        this.pill.textContent = BUSY_TEXT[action] || 'กำลังบันทึก…';
+        $('#toast').appendChild(this.pill);
+      }, 250);
+    }
+    return () => {
+      if (btn) { btn.classList.remove('is-busy'); if (lock) btn.disabled = false; }
+      this.n--;
+      if (write) this.writes--;
+      if (!this.n) $('#busybar').classList.remove('on');
+      if (!this.writes) {
+        clearTimeout(this.timer); this.timer = null;
+        if (this.pill) { this.pill.remove(); this.pill = null; }
+      }
+    };
+  }
+};
+function call(action, payload) {
+  const done = Busy.start(action);
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(raw => {
+        let res;
+        try { res = JSON.parse(raw); } catch (e) { reject(new Error('ข้อมูลตอบกลับจากเซิร์ฟเวอร์ไม่ถูกต้อง')); return; }
+        if (res.ok) { resolve(res.data); return; }
+        const err = new Error(res.error);
+        err.code = res.code;
+        if (res.code === 'AUTH' && action !== 'session.login' && App.boot) { App.logoutLocal(); App.showLogin(); }
+        reject(err);
+      })
+      .withFailureHandler(e => reject(new Error((e && e.message) || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')))
+      .api(action, payload || {}, App.token);
+  }).finally(done);
+}
+/** สมุดคะแนนของรายวิชา/ห้องที่เลือกอยู่ */
+function loadBook(withCells) {
+  return call('book.get', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id || '', cells: withCells !== false });
+}
+
+/* ---------------- toast / modal ---------------- */
+function toast(msg, isErr) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.textContent = msg;
+  $('#toast').appendChild(t);
+  setTimeout(() => t.remove(), isErr ? 6000 : 3000);
+}
+function showError(e) { toast(e && e.message ? e.message : String(e), true); }
+
+/**
+ * modal({title, body, wide, actions:[{label, kind:'primary'|'danger', onClick(close, root) → Promise|void}]})
+ */
+function modal(opts) {
+  const host = $('#modal');
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal ${opts.wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(opts.title)}">
+      <header>${esc(opts.title)}</header>
+      <div class="body">${opts.body || ''}</div>
+      <footer></footer></div>`;
+  const close = () => { bg.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  const footer = $('footer', bg);
+  (opts.actions || [{ label: 'ปิด' }]).forEach(a => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (a.kind || '');
+    b.textContent = a.label;
+    b.onclick = async () => {
+      if (!a.onClick) { close(); return; }
+      b.disabled = true;
+      try { const r = await a.onClick(close, bg); if (r !== false) close(); }
+      catch (e) { showError(e); }
+      finally { b.disabled = false; }
+    };
+    footer.appendChild(b);
+  });
+  bg.addEventListener('mousedown', e => { if (e.target === bg) close(); });
+  host.appendChild(bg);
+  const first = $('input, select, textarea', bg);
+  if (first) first.focus();
+  return { root: bg, close };
+}
+function confirmBox(title, message, okLabel, danger) {
+  return new Promise(resolve => {
+    modal({
+      title, body: `<p style="margin:0">${esc(message)}</p>`,
+      actions: [
+        { label: 'ยกเลิก', onClick: () => resolve(false) },
+        { label: okLabel || 'ยืนยัน', kind: danger ? 'danger' : 'primary', onClick: () => resolve(true) }
+      ]
+    });
+  });
+}
+
+/* ---------------- รายวิชา / ห้อง ที่เลือกอยู่ (แถบบนสุด) ---------------- */
+function currentTermId() { return App.boot.current_term ? App.boot.current_term.term_id : null; }
+function courseById(id) { return App.boot.courses.find(c => c.course_id === Number(id)); }
+function ctxCourse() { return courseById(App.ctx.course_id); }
+function ctxRoomName() {
+  const c = ctxCourse();
+  const r = c && c.rooms.find(x => x.classroom_id === Number(App.ctx.classroom_id));
+  return r ? r.room_name : 'ทั้งหมด';
+}
+/** ข้อความห้องสำหรับประโยค: "ห้อง 3/1" หรือ "ทุกห้อง" */
+function ctxRoomLabel() {
+  const n = ctxRoomName();
+  return n === 'ทั้งหมด' ? 'ทุกห้อง' : 'ห้อง ' + n;
+}
+function initCtx() {
+  const saved = Store.get('ctx', {});
+  let c = courseById(saved.course_id);
+  if (!c) {
+    const term = currentTermId();
+    c = App.boot.courses.find(x => x.term_id === term && x.can_edit) || App.boot.courses.find(x => x.term_id === term) || App.boot.courses[0];
+  }
+  App.ctx.course_id = c ? c.course_id : null;
+  App.ctx.classroom_id = c && c.rooms.some(r => r.classroom_id === Number(saved.classroom_id)) ? Number(saved.classroom_id) : '';
+}
+function renderCtx(mode) {
+  const box = $('#ctx');
+  if (!box) return;
+  if (!mode || !App.boot.courses.length) { box.innerHTML = ''; return; }
+  const c = ctxCourse();
+  const groups = {};
+  App.boot.courses.forEach(x => { (groups[x.term_label] = groups[x.term_label] || []).push(x); });
+  const courseSel = `<label class="f"><span>รายวิชา</span><select data-ctx="course">${Object.keys(groups).map(t => `<optgroup label="ภาคเรียน ${esc(t)}">` +
+    groups[t].map(x => `<option value="${x.course_id}" ${x.course_id === App.ctx.course_id ? 'selected' : ''}>${esc(x.label)} • ${esc(x.teacher_name)}${x.can_edit ? '' : ' (ดูอย่างเดียว)'}</option>`).join('') + '</optgroup>').join('')}</select></label>`;
+  const roomSel = mode.indexOf('room') >= 0 && c ? `<label class="f"><span>เลือกห้องเรียน</span><select data-ctx="room">
+      <option value="">ทั้งหมด</option>${c.rooms.map(r => `<option value="${r.classroom_id}" ${r.classroom_id === Number(App.ctx.classroom_id) ? 'selected' : ''}>${esc(r.room_name)}</option>`).join('')}</select></label>` : '';
+  box.innerHTML = courseSel + roomSel;
+  $$('select[data-ctx]', box).forEach(s => s.addEventListener('change', () => {
+    if (s.dataset.ctx === 'course') { App.ctx.course_id = Number(s.value); App.ctx.classroom_id = ''; }
+    else App.ctx.classroom_id = s.value ? Number(s.value) : '';
+    Store.set('ctx', App.ctx);
+    go(App.page, Object.assign({}, App.params, { keepParams: true }));
+  }));
+}
+function noCourses(el) {
+  el.innerHTML = `<div class="empty">ยังไม่มีรายวิชาที่คุณสอน${App.boot.me.role === 'ADMIN' ? ' — เพิ่มได้ที่ ตั้งค่าระบบ › รายวิชา' : ' — แจ้งผู้ดูแลระบบให้กำหนดรายวิชา'}</div>`;
+}
+/** ปุ่มเลือกห้อง (ใช้เมื่อหน้านั้นต้องเลือกห้องก่อน เช่น เช็กชื่อ) */
+function roomPicker(el, title) {
+  const c = ctxCourse();
+  el.innerHTML = `<div class="section"><h2>${esc(title || 'เลือกห้องเรียน')}</h2>
+    <div class="room-grid">${c.rooms.map(r => `<button class="room-btn" data-room="${r.classroom_id}">ห้อง ${esc(r.room_name)}</button>`).join('')}</div></div>`;
+  $$('[data-room]', el).forEach(b => b.onclick = () => {
+    App.ctx.classroom_id = Number(b.dataset.room);
+    Store.set('ctx', App.ctx);
+    go(App.page, App.params);
+  });
+}
+
+/* ---------------- เมนู (ตามชีต SMART CLASSROOM เดิม) ---------------- */
+const NAV_STAFF = [
+  ['dashboard', '🏠', 'แดชบอร์ด'],
+  ['home', '🧭', 'หน้าหลัก'],
+  ['students', '👥', 'รายชื่อนักเรียน'],
+  ['assignments', '📚', 'รายละเอียดงาน'],
+  ['submit', '✅', 'เช็กส่งงาน'],
+  ['dates', '📅', 'วันที่ส่งงาน'],
+  ['scores', '📝', 'บันทึกคะแนน'],
+  ['individual', '🎯', 'คะแนนรายบุคคล'],
+  ['attendance', '🕘', 'เช็กชื่อมาเรียน'],
+  ['search', '🔎', 'ค้นหารายบุคคล'],
+  ['missing', '📌', 'งานค้าง'],
+  ['roomreport', '📊', 'รายงานห้อง'],
+  ['ranking', '🏆', 'จัดอันดับ'],
+  ['risk', '⚠️', 'นักเรียนเสี่ยง'],
+  ['summary', '📄', 'สรุปผลการเรียน'],
+  ['settings', '⚙️', 'ตั้งค่าระบบ']
+];
+function navItems() {
+  const role = App.boot.me.role;
+  if (role === 'STUDENT') return [['portal', '🎓', 'ผลการเรียนของฉัน'], '-', ['account', '🔑', 'บัญชีของฉัน']];
+  return NAV_STAFF.concat(['-', ['account', '🔑', 'บัญชีของฉัน']]);
+}
+function pageTitle(page) {
+  const it = navItems().find(x => x !== '-' && x[0] === page);
+  return it ? it[2] : (App.pages[page] && App.pages[page].title) || '';
+}
+
+App.renderShell = function () {
+  const b = App.boot;
+  const roleName = { ADMIN: 'ผู้ดูแลระบบ', TEACHER: 'ครู', STUDENT: 'นักเรียน' }[b.me.role];
+  $('#root').innerHTML = `
+    <div class="app">
+      <aside class="spine" aria-label="เมนูหลัก">
+        <div class="brand"><b>SMART CLASSROOM</b><small>GRADE &amp; ASSIGNMENT PRO TH</small></div>
+        <nav class="nav">${navItems().map(i => i === '-' ? '<hr>' :
+          `<button type="button" data-go="${i[0]}"><span class="ico" aria-hidden="true">${i[1]}</span>${esc(i[2])}</button>`).join('')}</nav>
+        <div class="who"><b>${esc(b.me.display_name)}</b>${esc(roleName)}${b.me.via === 'google' ? ' • บัญชี Google' : ''}<br>
+          <button type="button" data-act="logout">ออกจากระบบ</button></div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <button type="button" class="menu-btn" data-act="menu" aria-label="เปิดเมนู">☰</button>
+          <div class="ttl"><h1 id="title"></h1><span class="term">${esc(b.school_name)}${b.current_term ? ' • ปีการศึกษา ' + b.current_term.academic_year + ' ภาคเรียน ' + b.current_term.semester : ''}</span></div>
+          <div class="ctx" id="ctx"></div>
+        </header>
+        <section id="page"></section>
+      </main>
+    </div>`;
+  $('.nav').addEventListener('click', e => {
+    const btn = e.target.closest('[data-go]');
+    if (btn) go(btn.dataset.go, {});
+  });
+  $('[data-act=logout]').onclick = App.logout;
+  $('[data-act=menu]').onclick = () => $('.app').classList.toggle('nav-open');
+};
+
+async function go(page, params) {
+  if (App.dirty) {
+    const ok = await confirmBox('ยังไม่ได้บันทึก', 'มีข้อมูลที่แก้ไขแต่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้หรือไม่?', 'ออกโดยไม่บันทึก', true);
+    if (!ok) return;
+  }
+  App.dirty = false;
+  if (!App.pages[page]) page = App.boot.me.role === 'STUDENT' ? 'portal' : 'dashboard';
+  const def = App.pages[page];
+  if (App.page && App.page !== page) App.prevPage = { page: App.page, params: App.params };
+  App.page = page;
+  App.params = params || {};
+  Store.set('page', page);
+  $$('.nav [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go === page || b.dataset.go === def.navAs ? 'page' : 'false'));
+  $('#title').textContent = def.title || pageTitle(page);
+  renderCtx(def.ctx);
+  const app = $('.app'); if (app) app.classList.remove('nav-open');
+  const el = $('#page');
+  el.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  try {
+    if (def.ctx && !App.ctx.course_id) { noCourses(el); return; }
+    await def.render(el, App.params);
+  } catch (e) {
+    el.innerHTML = `<div class="empty"><span class="redpen">${esc(e.message)}</span></div>`;
+  }
+}
+window.addEventListener('beforeunload', e => { if (App.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------------- session ---------------- */
+App.start = async function () {
+  App.token = Store.get('token', null);
+  try {
+    const s = await call('session.me');
+    App.session = s;
+    if (s.me) await App.enter();
+    else App.showLogin();
+  } catch (e) {
+    // เช่น ฐานข้อมูลเปิดไม่ได้ / ข้อมูลที่จำไว้ในเบราว์เซอร์ไม่ตรงกับฐานข้อมูล → ให้ล้างแล้วลองใหม่ได้
+    $('#root').innerHTML = `<div class="empty" style="margin:40px"><p><span class="redpen">${esc(e.message)}</span></p>
+      <p><button class="btn" data-retry>ลองใหม่</button> <button class="btn" data-reset>ล้างข้อมูลที่จำไว้ในเบราว์เซอร์ แล้วเข้าสู่ระบบใหม่</button></p></div>`;
+    $('[data-retry]').onclick = () => App.start();
+    $('[data-reset]').onclick = () => { ['token', 'ctx', 'page'].forEach(k => Store.del(k)); App.logoutLocal(); App.start(); };
+  }
+};
+App.enter = async function () {
+  App.boot = await call('bootstrap');
+  initCtx();
+  App.renderShell();
+  // หน้าที่ต้องกลับไปหลังเข้าสู่ระบบ (เช่น หลังเปลี่ยนฐานข้อมูล)
+  const next = Store.get('next', null);
+  if (next && App.pages[next.page] && App.boot.me.role === 'ADMIN') { Store.del('next'); go(next.page, next.p || {}); return; }
+  const last = Store.get('page', null);
+  go(App.pages[last] && !App.pages[last].hidden ? last : (App.boot.me.role === 'STUDENT' ? 'portal' : 'dashboard'), {});
+};
+App.reloadBoot = async function () { App.boot = await call('bootstrap'); initCtx(); };
+App.logoutLocal = function () { App.token = null; Store.del('token'); App.boot = null; App.dirty = false; };
+App.logout = async function () {
+  try { await call('session.logout'); } catch (e) { /* ignore */ }
+  App.logoutLocal();
+  App.showLogin();
+};
+App.showLogin = function () {
+  const s = App.session || {};
+  $('#root').innerHTML = `
+    <div class="login">
+      <div class="side">
+        <small style="letter-spacing:.04em;opacity:.8">SMART CLASSROOM • GRADE &amp; ASSIGNMENT PRO TH</small>
+        <h1>${esc(s.school_name || 'Smart Classroom')}</h1>
+        <p>ระบบจัดการชั้นเรียน เช็กส่งงาน บันทึกคะแนน และตัดเกรดครบวงจร</p>
+      </div>
+      <form autocomplete="on">
+        <h2>เข้าสู่ระบบ</h2>
+        <label class="f"><span>ชื่อผู้ใช้ หรือ เลขประจำตัวนักเรียน</span><input type="text" name="username" autocomplete="username" required></label>
+        <label class="f"><span>รหัสผ่าน</span><input type="password" name="password" autocomplete="current-password" required></label>
+        <div class="err-text" role="alert"></div>
+        <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
+        <p class="note">${s.google_email
+          ? 'บัญชี Google ' + esc(s.google_email) + ' ยังไม่ได้ผูกกับผู้ใช้ในระบบ — เข้าด้วยชื่อผู้ใช้ หรือให้ผู้ดูแลเพิ่มอีเมลนี้ในตั้งค่าระบบ'
+          : 'ใช้ชื่อผู้ใช้และรหัสผ่านที่ได้รับจากผู้ดูแลระบบ'}</p>
+      </form>
+    </div>`;
+  const form = $('.login form');
+  form.querySelector('input').focus();
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const btn = $('button', form);
+    const f = formData(form);
+    btn.disabled = true;
+    $('.err-text', form).textContent = '';
+    try {
+      const r = await call('session.login', f);
+      App.token = r.token;
+      Store.set('token', r.token);
+      await App.enter();
+    } catch (err) {
+      $('.err-text', form).textContent = err.message;
+    } finally { btn.disabled = false; }
+  };
+};
+
+/* ---------------- ส่วนประกอบที่ใช้ร่วมกัน ---------------- */
+/** แถบบันทึกด้านล่าง + ตัวนับการแก้ไข */
+function saveBar(label) {
+  return `<div class="savebar no-print"><span class="grow" data-changes>ยังไม่มีการแก้ไข</span><button class="btn primary" data-act="save" disabled>${esc(label || 'บันทึก')}</button></div>`;
+}
+function setChanges(el, n) {
+  App.dirty = n > 0;
+  const ch = $('[data-changes]', el);
+  if (ch) ch.textContent = n ? 'แก้ไข ' + n + ' ช่อง (ยังไม่บันทึก)' : 'ยังไม่มีการแก้ไข';
+  const sv = $('[data-act=save]', el);
+  if (sv) sv.disabled = !n;
+}
+/** ชื่อคอลัมน์งานแบบสั้น: 1 ใบงาน */
+function asgHead(a) { return (a.seq_no && a.seq_no < 100 ? a.seq_no + ' ' : '') + a.title; }
+/** หัวรายงานสำหรับพิมพ์ */
+function printHead(title, book) {
+  const c = book.course;
+  return `<div class="print-only"><h2 style="margin:0">${esc(title)}</h2><p style="margin:4px 0 10px">${esc(App.boot.school_name)} • ${esc(c.label)} • ภาคเรียนที่ ${c.semester}/${c.academic_year} • ครูผู้สอน ${esc(c.teacher_name)} • ${esc(ctxRoomLabel())}</p></div>`;
+}
+</script>
+
+  <script>
+'use strict';
+/* ==========================================================================
+ * JsPages1 — แดชบอร์ด, หน้าหลัก, รายละเอียดงาน, เช็กส่งงาน, วันที่ส่งงาน, บันทึกคะแนน, คะแนนรายบุคคล
+ * ========================================================================== */
+
+/** แถบตัวเลข 5 ช่อง (แบบหัวข้อย่อยในแดชบอร์ดชีตเดิม) */
+function band(title, items) {
+  return `<div class="section"><h2>${esc(title)}</h2><div class="ledger band" style="grid-template-columns:repeat(${items.length},1fr)">${items.map(i =>
+    `<div><div class="k">${esc(i[0])}</div><div class="v ${i[2] === 'warn' && Number(String(i[1]).replace(/[^\d.]/g, '')) > 0 ? 'warn' : ''}">${i[1] === null || i[1] === undefined ? '-' : i[1]}</div></div>`).join('')}</div></div>`;
+}
+function gradeBars(counts) {
+  const grades = App.boot.grade_scales.map(g => (g.grade % 1 === 0 ? String(g.grade) : g.grade.toFixed(1))).concat(['ร', 'มส']);
+  const max = Math.max(1, ...grades.map(g => counts[g] || 0));
+  const bad = g => g === 'ร' || g === 'มส' || g === '0';
+  return `<div class="gbars" role="img" aria-label="${esc(grades.map(g => 'ผล ' + g + ' ' + (counts[g] || 0) + ' คน').join(', '))}">${grades.map(g =>
+      `<div class="gbar ${bad(g) ? 'special' : ''}"><span>${counts[g] || 0}</span><i style="height:${Math.round((counts[g] || 0) / max * 100)}%"></i></div>`).join('')}</div>
+    <div class="glabels" aria-hidden="true">${grades.map(g => `<span class="${bad(g) ? 'special' : ''}">${g}</span>`).join('')}</div>`;
+}
+function submitDonut(s) {
+  const onTime = Math.max(0, s.submitted_total - s.late_total), late = s.late_total, miss = s.not_submitted_total;
+  const total = onTime + late + miss || 1;
+  const a = onTime / total * 100, b = (onTime + late) / total * 100;
+  return `<div class="donut-wrap"><div class="donut" role="img" aria-label="ส่งแล้ว ${onTime} ส่งช้า ${late} ยังไม่ส่ง ${miss}"
+      style="background:conic-gradient(var(--ok) 0 ${a}%, var(--late) ${a}% ${b}%, var(--redpen) ${b}% 100%)"><div><b>${pct(s.submission_rate)}</b><small>ส่งแล้ว</small></div></div>
+    <ul class="legend">
+      <li><i style="background:var(--ok)"></i>ส่งตรงเวลา <b>${fmt(onTime, 0)}</b></li>
+      <li><i style="background:var(--late)"></i>ส่งช้า <b>${fmt(late, 0)}</b></li>
+      <li><i style="background:var(--redpen)"></i>ยังไม่ส่ง <b>${fmt(miss, 0)}</b></li>
+    </ul></div>`;
+}
+
+/* ---------------- 🏠 แดชบอร์ด ---------------- */
+App.pages.dashboard = {
+  ctx: 'course+room',
+  async render(el) {
+    const d = await call('dashboard.get', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id || '' });
+    const s = d.summary, k = d.kpi;
+    el.innerHTML = `
+      <p class="page-sub">${esc(d.course.label)} • ${esc(d.course.teacher_name)} • มุมมองข้อมูล: ${esc(ctxRoomLabel())}</p>
+      <div class="ledger">
+        <div><div class="k">👥 จำนวนนักเรียน</div><div class="v">${fmt(k.students, 0)}</div></div>
+        <div><div class="k">📝 งานที่เปิดใช้งาน</div><div class="v">${fmt(k.assignments, 0)}</div></div>
+        <div><div class="k">✅ อัตราการส่งงาน</div><div class="v ${k.submission_rate !== null && k.submission_rate < 80 ? 'warn' : ''}">${fmt(k.submission_rate)}<small>%</small></div></div>
+        <div><div class="k">🎯 คะแนนเฉลี่ย</div><div class="v">${fmt(k.avg_total)}</div></div>
+        <div><div class="k">⏰ งานส่งช้า</div><div class="v">${fmt(k.late, 0)}</div></div>
+      </div>
+      <div class="cols section">
+        <div><h2>ภาพรวมผลการเรียน <small>${fmt(s.students, 0)} คน</small></h2>${gradeBars(s.grade_counts)}</div>
+        <div><h2>ภาพรวมการส่งงาน</h2><div class="panel">${submitDonut(s)}</div></div>
+      </div>
+      <div class="cols section">
+        <div><h2>นักเรียนที่ควรติดตาม</h2>
+          ${d.follow.length ? `<div class="tbl-wrap" style="max-height:330px"><table class="t"><thead><tr><th>ชื่อ-สกุล</th><th>ห้อง</th><th class="n">งานค้าง</th><th class="c">เกรด</th></tr></thead><tbody>
+            ${d.follow.map(f => `<tr class="clickable" data-student="${f.student_id}"><td>${esc(f.full_name)}</td><td>${esc(f.room_name)}</td>
+              <td class="n ${f.missing ? 'redpen' : ''}">${f.missing}</td><td class="c">${resultTag(f.result)}</td></tr>`).join('')}</tbody></table></div>`
+          : '<div class="empty">ไม่มีนักเรียนที่ต้องติดตาม</div>'}</div>
+        <div><h2>กำหนดส่งงาน</h2>
+          ${d.upcoming.length ? `<div class="tbl-wrap" style="max-height:330px"><table class="t"><thead><tr><th>ชื่องาน</th><th>กำหนดส่ง</th><th class="n">คะแนน</th></tr></thead><tbody>
+            ${d.upcoming.map(a => `<tr><td>${esc(asgHead(a))}</td><td>${thDate(a.due_date)} <span class="muted">(${dueText(a.due_date)})</span></td><td class="n">${fmt(a.max_score)}</td></tr>`).join('')}</tbody></table></div>`
+          : '<div class="empty">ไม่มีงานที่กำลังจะถึงกำหนดส่ง</div>'}</div>
+      </div>
+      ${band('📊 สถานะผลการเรียน', [['✅ ผ่านเกณฑ์', s.pass], ['🔴 เกรด 0', s.zero, 'warn'], ['🟣 ร (คะแนนไม่ครบ)', s.incomplete, 'warn'], ['🟠 มส. (เวลาเรียน)', s.no_eligible, 'warn'], ['🏆 เกรด 4', s.grade4]])}
+      ${band('🎯 สถิติคะแนน', [['📈 คะแนนสูงสุด', fmt(s.max_total)], ['📉 คะแนนต่ำสุด', fmt(s.min_total)], ['⭐ เกรดเฉลี่ย', fmt(s.avg_grade, 2)], ['🏅 คะแนน 80 ขึ้นไป', s.over80], ['📚 คะแนน 50–79', s.between50_79]])}
+      ${band('📝 สถานะการส่งงาน', [['✅ ส่งแล้วทั้งหมด', fmt(s.submitted_total, 0)], ['📌 ยังไม่ส่งทั้งหมด', fmt(s.not_submitted_total, 0), 'warn'], ['⚠️ นักเรียนมีงานค้าง', s.students_with_missing, 'warn'], ['🌟 ส่งครบทุกงาน', s.students_complete], ['⏳ งานเลยกำหนด', s.overdue_assignments]])}
+      ${band('🕘 สรุปเวลาเรียน', [['📊 เวลาเรียนเฉลี่ย', pct(s.attendance_avg)], ['✅ ปกติ ≥ ' + s.min_attendance_percent + '%', s.attendance_ok], ['⚠️ ต่ำกว่า ' + s.min_attendance_percent + '%', s.attendance_low, 'warn'], ['👤 มาเรียนเฉลี่ย (ครั้ง)', fmt(s.attendance_avg_present)], ['🗓️ ครั้งที่เช็กสูงสุด', s.attendance_max_sessions]])}
+      <p class="note">อัปเดตล่าสุด: ${thDateTime(d.generated_at)} | มุมมอง: ${esc(ctxRoomLabel())}</p>`;
+    $$('tr[data-student]', el).forEach(tr => tr.onclick = () => go('search', { student_id: Number(tr.dataset.student) }));
+  }
+};
+
+/* ---------------- 🧭 หน้าหลัก ---------------- */
+const HOME_TILES = [
+  ['students', '👨‍🎓', 'ข้อมูลนักเรียน', 'จัดการข้อมูลนักเรียนและห้องเรียน'],
+  ['scores', '📝', 'บันทึกคะแนน', 'กรอกคะแนนนักเรียนรายวิชา'],
+  ['summary', '📊', 'สรุปผลคะแนน', 'ดูคะแนนรวมและตัดเกรด'],
+  ['ranking', '🏆', 'จัดอันดับ', 'จัดอันดับนักเรียนตามคะแนน'],
+  ['risk', '⚠️', 'นักเรียนเสี่ยง', 'รายชื่อนักเรียนที่มีความเสี่ยง'],
+  ['dashboard', '📈', 'แดชบอร์ด', 'ดูภาพรวมกราฟ สถิติ และรายงานต่าง ๆ'],
+  ['attendance', '📄', 'เช็กชื่อเรียน', 'เช็กการมาเรียน'],
+  ['settings', '⚙️', 'ตั้งค่า', 'ตั้งค่าระบบและเกณฑ์การให้คะแนน'],
+  ['submit', '📑', 'เช็กการส่งงาน', 'ดูงานที่ค้างและส่งแล้ว เปอร์เซ็นต์การส่งงาน'],
+  ['individual', '🕒', 'เช็กคะแนนรายบุคคล', 'ประมวลผลคะแนนและตัดเกรดอัตโนมัติ']
+];
+App.pages.home = {
+  ctx: 'course',
+  async render(el) {
+    const d = await call('dashboard.get', { course_id: App.ctx.course_id, classroom_id: '' });
+    const s = d.summary, c = d.course;
+    el.innerHTML = `
+      <div class="hero">
+        <div><b>SMART GRADE &amp; ASSIGNMENT PRO TH</b><p>ระบบจัดการชั้นเรียน เช็กส่งงาน บันทึกคะแนน และตัดเกรดครบวงจร</p></div>
+        <div class="chips"><span>📅 ปีการศึกษา <b>${c.academic_year || '-'}</b></span><span>🎓 ภาคเรียน <b>${c.semester || '-'}</b></span><span>🏫 <b>${esc(App.boot.school_name)}</b></span></div>
+      </div>
+      <div class="home-top">
+        <div class="ledger" style="grid-template-columns:repeat(4,1fr);margin:0">
+          <div><div class="k">🏫 จำนวนห้องเรียน</div><div class="v">${fmt(s.rooms, 0)}</div><div class="k">ห้องเรียน</div></div>
+          <div><div class="k">👨‍🎓 จำนวนนักเรียนทั้งหมด</div><div class="v">${fmt(s.students, 0)}</div><div class="k">คน</div></div>
+          <div><div class="k">📊 คะแนนเฉลี่ยรวม</div><div class="v">${fmt(s.avg_total, 2)}</div><div class="k">คะแนน</div></div>
+          <div><div class="k">⚠️ นักเรียนติด ร</div><div class="v ${s.incomplete ? 'warn' : ''}">${fmt(s.incomplete, 0)}</div><div class="k">คน</div></div>
+        </div>
+        <div class="stats"><h3>สรุปภาพรวม</h3>
+          <div><span class="k">นักเรียนทั้งหมด</span><span class="v">${fmt(s.students, 0)} คน</span></div>
+          <div><span class="k">ผ่าน</span><span class="v">${fmt(s.pass, 0)} คน</span></div>
+          <div><span class="k">มส</span><span class="v ${s.no_eligible ? 'redpen' : ''}">${fmt(s.no_eligible, 0)} คน</span></div>
+          <div><span class="k">ร</span><span class="v ${s.incomplete ? 'redpen' : ''}">${fmt(s.incomplete, 0)} คน</span></div>
+        </div>
+      </div>
+      <div class="section"><h2>เมนูหลัก</h2>
+        <div class="tiles">${HOME_TILES.map(t => `<button class="tile" data-go="${t[0]}"><span class="ico">${t[1]}</span><b>${esc(t[2])}</b><small>${esc(t[3])}</small><em>เปิดเมนู →</em></button>`).join('')}</div>
+      </div>`;
+    $$('.tile', el).forEach(b => b.onclick = () => go(b.dataset.go, {}));
+  }
+};
+
+/* ---------------- 📚 รายละเอียดงาน ---------------- */
+App.pages.assignments = {
+  ctx: 'course',
+  async render(el) {
+    const d = await call('assignments.list', { course_id: App.ctx.course_id });
+    const edit = d.course.can_edit;
+    const totalWeight = d.categories.reduce((s, c) => s + c.weight, 0);
+    el.innerHTML = `
+      <div class="bar">
+        <div class="weights">${d.categories.map(c => `<span><b>${esc(c.name)}</b> ${fmt(c.weight)}${c.kind === 'EXAM' ? ' <em>สอบ</em>' : ` <em>${c.assignments} งาน</em>`}</span>`).join('')}
+          <span class="${totalWeight !== 100 ? 'redpen' : ''}"><b>รวม</b> ${fmt(totalWeight)}</span></div>
+        <span class="grow"></span>
+        ${edit ? '<button class="btn" data-act="cats">สัดส่วนคะแนน</button><button class="btn primary" data-act="add">+ เพิ่มงาน</button>' : '<span class="tag">ดูอย่างเดียว</span>'}
+      </div>
+      ${d.assignments.length ? `<div class="tbl-wrap"><table class="t"><thead><tr>
+        <th class="n">ลำดับงาน</th><th>ชื่องาน</th><th>หมวด</th><th class="n">คะแนนเต็ม</th><th>วันที่มอบหมาย</th><th>กำหนดส่ง</th><th>ลิงก์งาน</th><th>รายละเอียด/หมายเหตุ</th><th class="n">ส่งแล้ว</th><th></th></tr></thead><tbody>
+        ${d.assignments.map(a => `<tr${a.is_active ? '' : ' class="muted"'}>
+          <td class="n">${a.seq_no && a.seq_no < 100 ? a.seq_no : ''}</td>
+          <td>${esc(a.title)}${a.kind === 'EXAM' ? ' <span class="tag">สอบ</span>' : ''}${a.is_active ? '' : ' <span class="tag">ปิดใช้งาน</span>'}</td>
+          <td class="muted">${esc(a.category_name)}</td><td class="n">${fmt(a.max_score)}</td>
+          <td>${a.assigned_date ? thDate(a.assigned_date, true) : '<span class="muted">-</span>'}</td>
+          <td>${a.due_date ? thDate(a.due_date, true) : '<span class="muted">-</span>'}</td>
+          <td>${a.link_url ? `<a href="${esc(a.link_url)}" target="_blank" rel="noopener">เปิดลิงก์</a>` : '<span class="muted">-</span>'}</td>
+          <td class="muted">${esc(a.description || '')}</td>
+          <td class="n">${a.kind === 'EXAM' ? a.graded : a.submitted}/${d.students}</td>
+          <td style="white-space:nowrap;text-align:right">
+            <button class="btn small" data-entry="${a.assignment_id}">${edit ? (a.kind === 'EXAM' ? 'กรอกคะแนน' : 'เช็กส่ง / ให้คะแนน') : 'ดู'}</button>
+            ${edit ? `<button class="btn small ghost" data-edit="${a.assignment_id}">แก้ไข</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="empty">ยังไม่มีงานในรายวิชานี้${edit ? ' — กด "+ เพิ่มงาน" เพื่อเริ่ม' : ''}</div>`}`;
+    el.onclick = e => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      if (t.dataset.act === 'add') this.form(d, null);
+      if (t.dataset.act === 'cats') this.cats(d);
+      if (t.dataset.edit) this.form(d, d.assignments.find(a => a.assignment_id === Number(t.dataset.edit)));
+      if (t.dataset.entry) go('entry', { assignment_id: Number(t.dataset.entry) });
+    };
+  },
+
+  form(d, a) {
+    const nextSeq = Math.max(0, ...d.assignments.filter(x => x.seq_no < 100).map(x => x.seq_no || 0)) + 1;
+    a = a || { is_active: true, seq_no: nextSeq, max_score: 10, assigned_date: App.boot.today };
+    const m = modal({
+      title: a.assignment_id ? 'แก้ไขงาน' : 'เพิ่มงานใหม่', wide: true,
+      body: `<form class="body" style="padding:0">
+        <div class="grid2" style="grid-template-columns:110px 1fr">
+          <label class="f"><span>ลำดับงาน</span><input type="number" name="seq_no" min="1" value="${esc(a.seq_no || '')}"></label>
+          <label class="f"><span>ชื่องาน *</span><input type="text" name="title" value="${esc(a.title)}" maxlength="200" required></label>
+        </div>
+        <div class="grid2">
+          <label class="f"><span>หมวดคะแนน *</span><select name="category_id">${d.categories.map(c =>
+            `<option value="${c.category_id}" ${c.category_id === a.category_id ? 'selected' : ''}>${esc(c.name)} (${fmt(c.weight)})</option>`).join('')}</select></label>
+          <label class="f"><span>คะแนนเต็ม *</span><input type="number" name="max_score" min="0.5" step="0.5" value="${esc(a.max_score || 10)}"></label>
+          <label class="f"><span>วันที่มอบหมาย</span><input type="date" name="assigned_date" value="${esc(a.assigned_date || '')}"></label>
+          <label class="f"><span>กำหนดส่ง</span><input type="date" name="due_date" value="${esc(a.due_date || '')}"></label>
+        </div>
+        <label class="f"><span>ลิงก์งาน (เช่น Google Classroom / Drive)</span><input type="text" name="link_url" value="${esc(a.link_url || '')}" placeholder="https://"></label>
+        <label class="f"><span>รายละเอียด/หมายเหตุ</span><textarea name="description" maxlength="1000" style="min-height:80px">${esc(a.description || '')}</textarea></label>
+        <label><input type="checkbox" name="is_active" ${a.is_active ? 'checked' : ''}> เปิดใช้งาน (นำมาคิดคะแนน)</label>
+      </form>`,
+      actions: [
+        ...(a.assignment_id ? [{ label: 'ลบงาน', kind: 'danger', onClick: async () => {
+          if (!await confirmBox('ลบงาน', 'ลบ "' + a.title + '" ใช่หรือไม่?', 'ลบ', true)) return false;
+          await call('assignments.remove', { assignment_id: a.assignment_id });
+          toast('ลบงานแล้ว'); go('assignments', {});
+        } }] : []),
+        { label: 'ยกเลิก' },
+        { label: 'บันทึก', kind: 'primary', onClick: async (close, root) => {
+          const f = formData($('form', root));
+          f.course_id = d.course.course_id;
+          if (a.assignment_id) f.assignment_id = a.assignment_id;
+          await call('assignments.save', { assignment: f });
+          toast(a.assignment_id ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่มงานแล้ว');
+          go('assignments', {});
+        } }
+      ]
+    });
+    $('form', m.root).onsubmit = e => e.preventDefault();
+  },
+
+  cats(d) {
+    const row = c => `<div class="grid2" data-row style="grid-template-columns:1fr 110px 120px 40px;align-items:end">
+      <label class="f"><span>ชื่อหมวด</span><input type="text" name="name" value="${esc(c.name || '')}" data-id="${c.category_id || ''}"></label>
+      <label class="f"><span>คะแนนเต็ม</span><input type="number" name="weight" min="0" step="0.5" value="${esc(c.weight === undefined ? '' : c.weight)}"></label>
+      <label class="f"><span>ชนิด</span><select name="kind"><option value="WORK" ${c.kind !== 'EXAM' ? 'selected' : ''}>งาน</option><option value="EXAM" ${c.kind === 'EXAM' ? 'selected' : ''}>สอบ</option></select></label>
+      <button type="button" class="btn ghost" data-del aria-label="ลบหมวด">✕</button></div>`;
+    const m = modal({
+      title: 'สัดส่วนคะแนน', wide: true,
+      body: `<p class="note" style="margin:0">คะแนนดิบของทุกงานในหมวดจะเทียบเป็นคะแนนเต็มของหมวด เช่น งาน 20 ชิ้น ชิ้นละ 10 (รวม 200) → ก่อนกลางภาค 35 • หมวด "สอบ" ไม่นับในการเช็กส่งงาน</p>
+        <div data-rows>${d.categories.map(row).join('')}</div>
+        <button type="button" class="btn small" data-addrow>+ เพิ่มหมวด</button>
+        <p class="note" data-sum></p>`,
+      actions: [{ label: 'ยกเลิก' }, { label: 'บันทึก', kind: 'primary', onClick: async (close, root) => {
+        const cats = $$('[data-row]', root).map((r, i) => ({
+          category_id: Number($('[name=name]', r).dataset.id) || null,
+          name: $('[name=name]', r).value, weight: $('[name=weight]', r).value, kind: $('[name=kind]', r).value, sort_order: i + 1
+        })).filter(c => c.name.trim());
+        await call('categories.save', { course_id: d.course.course_id, categories: cats });
+        toast('บันทึกสัดส่วนคะแนนแล้ว'); go('assignments', {});
+      } }]
+    });
+    const sum = () => {
+      const s = $$('[name=weight]', m.root).reduce((t, i) => t + (Number(i.value) || 0), 0);
+      $('[data-sum]', m.root).innerHTML = 'รวม ' + fmt(s) + ' คะแนน' + (s !== 100 ? ' — <span class="redpen">ควรรวมได้ 100</span>' : '');
+    };
+    m.root.addEventListener('input', sum);
+    m.root.addEventListener('click', e => {
+      if (e.target.closest('[data-addrow]')) { $('[data-rows]', m.root).insertAdjacentHTML('beforeend', row({})); sum(); }
+      const del = e.target.closest('[data-del]');
+      if (del) { del.closest('[data-row]').remove(); sum(); }
+    });
+    sum();
+  }
+};
+
+/* ---------------- กรอกทีละงาน (เปิดจากรายละเอียดงาน) ---------------- */
+App.pages.entry = {
+  title: 'เช็กส่ง / ให้คะแนนรายงาน',
+  ctx: 'course+room',
+  navAs: 'assignments',
+  hidden: true,
+  async render(el, p) {
+    if (!p.assignment_id) { go('assignments', {}); return; }
+    const [d, list] = await Promise.all([
+      call('gradebook.sheet', { assignment_id: p.assignment_id, classroom_id: App.ctx.classroom_id || '' }),
+      call('assignments.list', { course_id: App.ctx.course_id })
+    ]);
+    const a = d.assignment;
+    const isExam = d.category && d.category.kind === 'EXAM';
+    const edit = d.course.can_edit;
+    const overdue = a.due_date && App.boot.today > a.due_date;
+    const statuses = App.boot.submission_statuses;
+    const rows = d.students.map(s => Object.assign({}, s, { orig: JSON.stringify([s.status_code, s.score, s.submitted_date, s.teacher_comment || null]) }));
+    el.innerHTML = `
+      <div class="bar">
+        <button class="btn" data-act="back">← รายละเอียดงาน</button>
+        <label class="f grow"><span>งาน</span><select data-act="asg">${list.assignments.filter(x => x.is_active || x.assignment_id === a.assignment_id).map(x =>
+          `<option value="${x.assignment_id}" ${x.assignment_id === a.assignment_id ? 'selected' : ''}>${esc(asgHead(x))} (${esc(x.category_name)})</option>`).join('')}</select></label>
+      </div>
+      <p style="margin:-8px 0 16px">หมวด ${esc(d.category ? d.category.name : '-')} • คะแนนเต็ม <b class="num">${fmt(a.max_score)}</b>
+        ${a.due_date ? `• กำหนดส่ง ${thDate(a.due_date, true)} <span class="${overdue ? 'redpen' : 'muted'}">(${dueText(a.due_date)})</span>` : ''} • ${esc(ctxRoomLabel())}</p>
+      ${edit && !isExam ? `<div class="bar no-print">
+        <button class="btn small" data-fill="SUBMITTED">คนที่ยังว่าง → ส่งแล้ว</button>
+        <button class="btn small" data-fill="MISSING">คนที่ยังว่าง → ไม่ส่ง</button>
+        <button class="btn small" data-full>ให้คะแนนเต็มคนที่ส่งแล้ว</button></div>` : ''}
+      ${!edit ? '<p class="note">ดูอย่างเดียว — เฉพาะครูผู้สอนวิชานี้ที่แก้ไขได้</p>' : ''}
+      <div class="tbl-wrap"><table class="t entry"><thead><tr><th class="roll">เลขที่</th><th>ชื่อ-สกุล</th>${isExam ? '' : '<th>สถานะ</th>'}<th class="n">คะแนน</th>${isExam ? '' : '<th>วันที่ส่ง</th>'}<th>หมายเหตุ</th></tr></thead><tbody>
+        ${rows.map((s, i) => `<tr data-i="${i}">
+          <td class="roll">${s.roll_no || ''}</td>
+          <td class="e-name">${esc(s.full_name)} <span class="muted">${esc(s.room_name)}</span></td>
+          ${isExam ? '' : `<td class="e-st"><div class="seg" role="group" aria-label="สถานะการส่งของ ${esc(s.full_name)}">${statuses.map(st =>
+            `<button type="button" data-v="${st.status_code}" aria-pressed="${s.status_code === st.status_code}" ${edit ? '' : 'disabled'}>${esc(st.name_th)}</button>`).join('')}</div></td>`}
+          <td class="n e-score"><input class="score" type="text" inputmode="decimal" value="${s.score === null ? '' : s.score}" ${edit ? '' : 'disabled'} aria-label="คะแนน ${esc(s.full_name)}"></td>
+          ${isExam ? '' : `<td class="e-date"><input class="date" type="date" value="${esc(s.submitted_date || '')}" ${edit ? '' : 'disabled'} aria-label="วันที่ส่ง ${esc(s.full_name)}"></td>`}
+          <td class="e-cmt"><input class="cmt" type="text" maxlength="500" value="${esc(s.teacher_comment || '')}" placeholder="หมายเหตุ" ${edit ? '' : 'disabled'} aria-label="หมายเหตุ ${esc(s.full_name)}"></td>
+        </tr>`).join('')}
+      </tbody></table></div>
+      ${edit ? saveBar() : ''}`;
+
+    const tbody = $('tbody', el);
+    const key = s => JSON.stringify([s.status_code, s.score, s.submitted_date, s.teacher_comment || null]);
+    const refresh = () => {
+      let changed = 0, bad = 0;
+      rows.forEach((s, i) => {
+        const tr = tbody.children[i];
+        const c = key(s) !== s.orig;
+        if (c) changed++;
+        tr.classList.toggle('changed', c);
+        const inp = $('input.score', tr);
+        const v = inp.value.trim();
+        const invalid = v !== '' && (isNaN(Number(v)) || Number(v) < 0 || Number(v) > a.max_score);
+        inp.classList.toggle('invalid', invalid);
+        if (invalid) bad++;
+        $$('.seg button', tr).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === s.status_code)));
+      });
+      setChanges(el, changed);
+      const sv = $('[data-act=save]', el);
+      if (sv && bad) sv.disabled = true;
+    };
+    tbody.addEventListener('click', e => {
+      const b = e.target.closest('.seg button');
+      if (!b || !edit) return;
+      const s = rows[Number(b.closest('tr').dataset.i)];
+      s.status_code = s.status_code === b.dataset.v ? null : b.dataset.v;
+      refresh();
+    });
+    tbody.addEventListener('input', e => {
+      const s = rows[Number(e.target.closest('tr').dataset.i)];
+      if (e.target.classList.contains('score')) {
+        s.score = e.target.value.trim() === '' ? null : Number(e.target.value);
+        if (s.score !== null && !isExam && !s.status_code) s.status_code = 'SUBMITTED';
+        // ลบคะแนนออก (ไม่มีวันที่ส่ง) → กลับเป็นยังไม่ส่ง
+        if (s.score === null && !s.submitted_date && (s.status_code === 'SUBMITTED' || s.status_code === 'LATE')) s.status_code = null;
+      } else if (e.target.classList.contains('date')) s.submitted_date = e.target.value || null;
+      else if (e.target.classList.contains('cmt')) s.teacher_comment = e.target.value || null;
+      refresh();
+    });
+    tbody.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.target.classList.contains('score')) {
+        e.preventDefault();
+        const inputs = $$('input.score', tbody);
+        const next = inputs[inputs.indexOf(e.target) + (e.key === 'ArrowUp' ? -1 : 1)];
+        if (next) { next.focus(); next.select(); }
+      }
+    });
+    $$('[data-fill]', el).forEach(b => b.onclick = () => { rows.forEach(s => { if (!s.status_code && s.score === null) s.status_code = b.dataset.fill; }); refresh(); });
+    const full = $('[data-full]', el);
+    if (full) full.onclick = () => {
+      rows.forEach((s, i) => {
+        if ((s.status_code === 'SUBMITTED' || s.status_code === 'LATE') && s.score === null) {
+          s.score = a.max_score; $('input.score', tbody.children[i]).value = a.max_score;
+        }
+      });
+      refresh();
+    };
+    $('[data-act=back]', el).onclick = () => go('assignments', {});
+    $('[data-act=asg]', el).onchange = e => go('entry', { assignment_id: Number(e.target.value) });
+    const save = $('[data-act=save]', el);
+    if (save) save.onclick = async () => {
+      const changes = rows.filter(s => key(s) !== s.orig).map(s => ({
+        assignment_id: a.assignment_id, student_id: s.student_id, status_code: s.status_code, score: s.score,
+        submitted_date: s.submitted_date, teacher_comment: s.teacher_comment
+      }));
+      save.disabled = true;
+      try {
+        const r = await call('book.saveCells', { course_id: App.ctx.course_id, changes });
+        App.dirty = false;
+        toast('บันทึกแล้ว: เพิ่ม ' + r.inserted + ' แก้ไข ' + r.updated + (r.cleared ? ' ล้าง ' + r.cleared : ''));
+        go('entry', { assignment_id: a.assignment_id });
+      } catch (e) { showError(e); save.disabled = false; }
+    };
+    refresh();
+  }
+};
+
+/* ---------------- ส่วนประกอบตารางนักเรียน × งาน ---------------- */
+function bookHeadCols(book, showRoom) {
+  return `<th class="stick1 roll">เลขที่</th><th class="stick2">ชื่อ-สกุล</th>${showRoom ? '<th>ห้อง</th>' : ''}`;
+}
+function bookRowCols(s, showRoom) {
+  return `<td class="stick1 roll">${s.roll_no || ''}</td><td class="stick2" title="${esc(s.student_code)}"><a href="#" data-student="${s.student_id}">${esc(s.full_name)}</a></td>${showRoom ? `<td>${esc(s.room_name)}</td>` : ''}`;
+}
+function bindStudentLinks(el) {
+  el.addEventListener('click', e => {
+    const a = e.target.closest('a[data-student]');
+    if (a) { e.preventDefault(); go('search', { student_id: Number(a.dataset.student) }); }
+  });
+}
+function workAssignments(book) {
+  const cats = {};
+  book.categories.forEach(c => { cats[c.category_id] = c; });
+  return book.assignments.filter(a => (cats[a.category_id] || {}).kind !== 'EXAM');
+}
+
+/* ---------------- ✅ เช็กส่งงาน ---------------- */
+App.pages.submit = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(true);
+    const edit = book.course.can_edit;
+    const works = workAssignments(book);
+    const showRoom = !App.ctx.classroom_id;
+    const pending = {};
+    const state = (a, s) => {
+      const k = a.assignment_id + '|' + s.student_id;
+      if (k in pending) return pending[k] === null ? { s: null } : { s: pending[k] };
+      const c = (book.cells[a.assignment_id] || {})[s.student_id];
+      return c ? { s: c[0], v: c[1], d: c[2] } : { s: null };
+    };
+    const cellHtml = (a, s) => {
+      const st = state(a, s);
+      const k = a.assignment_id + '|' + s.student_id;
+      const changed = k in pending ? ' changed' : '';
+      if (st.s === 'EXCUSED') return `<td class="tick ex${changed}" data-k="${k}" title="ยกเว้น">ย</td>`;
+      const submitted = st.v !== null && st.v !== undefined || st.s === 'SUBMITTED' || st.s === 'LATE';
+      if (submitted) {
+        const late = st.s === 'LATE' || (st.d && a.due_date && st.d > a.due_date);
+        return `<td class="tick ${late ? 'late' : 'yes'}${changed}" data-k="${k}" title="${late ? 'ส่งช้า' : 'ส่งแล้ว'}${st.v !== null && st.v !== undefined ? ' • คะแนน ' + st.v : ''}">✔</td>`;
+      }
+      const counts = book.rules.missing_rule !== 'OVERDUE' || st.s === 'MISSING' || (a.due_date && a.due_date < book.today);
+      return `<td class="tick ${counts ? 'no' : 'wait'}${changed}" data-k="${k}" title="${counts ? 'ยังไม่ส่ง' : 'ยังไม่ถึงกำหนด'}">${counts ? '✗' : '·'}</td>`;
+    };
+    const draw = () => {
+      el.innerHTML = `${printHead('เช็กส่งงาน', book)}
+        <div class="bar no-print"><p class="note grow" style="margin:0">✔ ส่งแล้ว • <span class="tick late" style="display:inline">✔</span> ส่งช้า • <span class="redpen">✗</span> ยังไม่ส่ง • ย ยกเว้น ${edit ? '— คลิกช่องเพื่อสลับ ✔/✗ (ช่องที่มีคะแนนแล้วให้แก้ที่หน้าบันทึกคะแนน)' : ''}</p>
+          <button class="btn" onclick="window.print()">พิมพ์</button></div>
+        ${works.length ? `<div class="tbl-wrap grid-wrap"><table class="t matrix"><thead><tr>${bookHeadCols(book, showRoom)}
+          ${works.map(a => `<th class="asg" title="${esc(a.title)}${a.due_date ? ' • กำหนดส่ง ' + thDate(a.due_date, true) : ''}"><span class="no">${a.seq_no || ''}</span><span class="tt">${esc(a.title)}</span></th>`).join('')}
+          <th class="n">ส่งแล้ว</th><th class="n">ค้าง</th><th class="n">%</th><th>สถานะ</th></tr></thead><tbody>
+          ${book.students.map(s => `<tr>${bookRowCols(s, showRoom)}${works.map(a => cellHtml(a, s)).join('')}
+            <td class="n">${s.submitted}</td><td class="n ${s.missing ? 'redpen' : ''}">${s.missing}</td><td class="n">${pct(s.submit_percent)}</td><td>${submitTag(s.submit_status)}</td></tr>`).join('')}
+        </tbody></table></div>` : '<div class="empty">ยังไม่มีงานในรายวิชานี้</div>'}
+        ${edit ? saveBar() : ''}`;
+      setChanges(el, Object.keys(pending).length);
+      bindSave();
+    };
+    const bindSave = () => {
+      const save = $('[data-act=save]', el);
+      if (save) save.onclick = async () => {
+        save.disabled = true;
+        const changes = Object.keys(pending).map(k => { const [aid, sid] = k.split('|'); return { assignment_id: Number(aid), student_id: Number(sid), status_code: pending[k] }; });
+        try {
+          const r = await call('book.saveCells', { course_id: App.ctx.course_id, changes });
+          App.dirty = false;
+          toast('บันทึกแล้ว ' + (r.inserted + r.updated + r.cleared) + ' ช่อง');
+          go('submit', {});
+        } catch (e) { showError(e); save.disabled = false; }
+      };
+    };
+    el.addEventListener('click', e => {
+      const td = e.target.closest('td.tick');
+      if (!td || !edit) return;
+      const [aid, sid] = td.dataset.k.split('|').map(Number);
+      const a = works.find(x => x.assignment_id === aid), s = book.students.find(x => x.student_id === sid);
+      const st = state(a, s);
+      if (st.v !== null && st.v !== undefined) { toast('ช่องนี้มีคะแนนแล้ว — แก้ที่หน้า บันทึกคะแนน'); return; }
+      const next = st.s === 'SUBMITTED' || st.s === 'LATE' ? 'MISSING' : st.s === 'MISSING' ? null : 'SUBMITTED';
+      const orig = ((book.cells[aid] || {})[sid] || [null])[0];
+      if (next === orig) delete pending[td.dataset.k]; else pending[td.dataset.k] = next;
+      td.outerHTML = cellHtml(a, s);
+      setChanges(el, Object.keys(pending).length);
+    });
+    bindStudentLinks(el);
+    draw();
+  }
+};
+
+/* ---------------- 📅 วันที่ส่งงาน ---------------- */
+App.pages.dates = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(true);
+    const edit = book.course.can_edit;
+    const works = workAssignments(book);
+    const showRoom = !App.ctx.classroom_id;
+    const pending = {};
+    const dateOf = (aid, sid) => {
+      const k = aid + '|' + sid;
+      if (k in pending) return pending[k];
+      const c = (book.cells[aid] || {})[sid];
+      return c ? c[2] : null;
+    };
+    const cellHtml = (a, s) => {
+      const k = a.assignment_id + '|' + s.student_id;
+      const d = dateOf(a.assignment_id, s.student_id);
+      const late = d && a.due_date && d > a.due_date;
+      return `<td class="dcell ${d ? (late ? 'late' : 'yes') : ''}${k in pending ? ' changed' : ''}" data-k="${k}" title="${d ? thDate(d, true) + (late ? ' (ส่งช้า ' + (Math.round((new Date(d) - new Date(a.due_date)) / 86400000)) + ' วัน)' : '') : 'ยังไม่บันทึกวันที่ส่ง'}">${d ? thShort(d) : ''}</td>`;
+    };
+    el.innerHTML = `${printHead('วันที่ส่งงาน', book)}
+      <div class="bar no-print"><p class="note grow" style="margin:0">บันทึกวันที่นักเรียนส่งงาน — วันที่เลยกำหนดส่งจะนับเป็น <span class="tag late">ส่งช้า</span> อัตโนมัติ ${edit ? '• คลิกช่องเพื่อใส่/แก้วันที่' : ''}</p>
+        <button class="btn" onclick="window.print()">พิมพ์</button></div>
+      ${works.length ? `<div class="tbl-wrap grid-wrap"><table class="t matrix"><thead><tr>${bookHeadCols(book, showRoom)}
+        ${works.map(a => `<th class="asg wide" title="${esc(a.title)}"><span class="no">${a.seq_no || ''}</span><span class="tt">${esc(a.title)}</span><span class="mx">${a.due_date ? 'กำหนด ' + thShort(a.due_date) : 'ไม่มีกำหนด'}</span></th>`).join('')}
+        <th class="n">ส่งช้า</th></tr></thead><tbody>
+        ${book.students.map(s => `<tr>${bookRowCols(s, showRoom)}${works.map(a => cellHtml(a, s)).join('')}<td class="n ${s.late ? 'redpen' : ''}">${s.late}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty">ยังไม่มีงานในรายวิชานี้</div>'}
+      ${edit ? saveBar() : ''}`;
+    setChanges(el, 0);
+    bindStudentLinks(el);
+    if (!edit) return;
+    el.addEventListener('click', e => {
+      const td = e.target.closest('td.dcell');
+      if (!td) return;
+      const [aid, sid] = td.dataset.k.split('|').map(Number);
+      const a = works.find(x => x.assignment_id === aid), s = book.students.find(x => x.student_id === sid);
+      const cur = dateOf(aid, sid);
+      const m = modal({
+        title: asgHead(a) + ' — ' + s.full_name,
+        body: `<p class="note" style="margin:0">${a.due_date ? 'กำหนดส่ง ' + thDate(a.due_date, true) : 'งานนี้ไม่มีกำหนดส่ง'}</p>
+          <label class="f"><span>วันที่ส่ง</span><input type="date" data-d value="${esc(cur || App.boot.today)}"></label>
+          <div class="bar" style="margin:0">${a.due_date ? '<button type="button" class="btn small" data-set="due">ตรงกำหนดส่ง</button>' : ''}<button type="button" class="btn small" data-set="today">วันนี้</button></div>`,
+        actions: [
+          { label: 'ล้างวันที่', kind: 'danger', onClick: () => { apply(null); } },
+          { label: 'ยกเลิก' },
+          { label: 'ตกลง', kind: 'primary', onClick: (close, root) => { apply($('[data-d]', root).value || null); } }
+        ]
+      });
+      $$('[data-set]', m.root).forEach(b => b.onclick = () => { $('[data-d]', m.root).value = b.dataset.set === 'due' ? a.due_date : App.boot.today; });
+      const apply = v => {
+        const orig = ((book.cells[aid] || {})[sid] || [])[2] || null;
+        if ((v || null) === orig) delete pending[td.dataset.k]; else pending[td.dataset.k] = v || null;
+        td.outerHTML = cellHtml(a, s);
+        setChanges(el, Object.keys(pending).length);
+      };
+    });
+    $('[data-act=save]', el).onclick = async e => {
+      const btn = e.target; btn.disabled = true;
+      const changes = Object.keys(pending).map(k => { const [aid, sid] = k.split('|'); return { assignment_id: Number(aid), student_id: Number(sid), submitted_date: pending[k] }; });
+      try {
+        await call('book.saveCells', { course_id: App.ctx.course_id, changes });
+        App.dirty = false; toast('บันทึกวันที่ส่งแล้ว ' + changes.length + ' ช่อง'); go('dates', {});
+      } catch (err) { showError(err); btn.disabled = false; }
+    };
+  }
+};
+
+/* ---------------- 📝 บันทึกคะแนน ---------------- */
+App.pages.scores = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(true);
+    const edit = book.course.can_edit;
+    const showRoom = !App.ctx.classroom_id;
+    const catById = {};
+    book.categories.forEach(c => { catById[c.category_id] = c; });
+    const groups = book.categories.map(c => ({ c, list: book.assignments.filter(a => a.category_id === c.category_id) })).filter(g => g.list.length);
+    const cols = [].concat(...groups.map(g => g.list));
+    const scoreOf = (aid, sid) => { const c = (book.cells[aid] || {})[sid]; return c && c[1] !== null ? c[1] : ''; };
+    el.innerHTML = `${printHead('บันทึกคะแนน', book)}
+      <div class="bar no-print"><p class="note grow" style="margin:0">พิมพ์คะแนนแล้วกด Enter เพื่อลงไปคนถัดไป • คอลัมน์สรุปด้านขวาจะคำนวณใหม่หลังกดบันทึก • ช่องว่าง = ยังไม่มีคะแนน (คิดเป็น 0)</p>
+        <button class="btn" onclick="window.print()">พิมพ์</button></div>
+      <div class="tbl-wrap grid-wrap"><table class="t matrix scores"><thead>
+        <tr><th class="stick1 roll" rowspan="3">เลขที่</th><th class="stick2" rowspan="3">ชื่อ-สกุล</th>${showRoom ? '<th rowspan="3">ห้อง</th>' : ''}
+          ${groups.map(g => `<th class="cat" colspan="${g.list.length}">${esc(g.c.name)} (${fmt(g.c.weight)})</th>`).join('')}
+          ${book.categories.map(c => `<th class="n sum" rowspan="3">${esc(c.name)}<br><span class="muted">${fmt(c.weight)}</span></th>`).join('')}
+          <th class="n sum" rowspan="3">รวม</th><th class="c sum" rowspan="3">เกรด</th><th class="c sum" rowspan="3">สถานะ</th><th class="c sum" rowspan="3">เกรด<br>สุดท้าย</th></tr>
+        <tr>${cols.map(a => `<th class="asg" title="${esc(a.title)}"><span class="no">${a.seq_no && a.seq_no < 100 ? a.seq_no : ''}</span><span class="tt">${esc(a.title)}</span></th>`).join('')}</tr>
+        <tr>${cols.map(a => `<th class="mxrow">${fmt(a.max_score)}</th>`).join('')}</tr>
+      </thead><tbody>
+        ${book.students.map((s, ri) => `<tr data-sid="${s.student_id}">${bookRowCols(s, showRoom)}
+          ${cols.map((a, ci) => `<td class="in"><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}" data-aid="${a.assignment_id}" data-max="${a.max_score}" value="${scoreOf(a.assignment_id, s.student_id)}" ${edit ? '' : 'disabled'} aria-label="${esc(s.full_name)} ${esc(a.title)}"></td>`).join('')}
+          ${s.categories.map(c => `<td class="n sum">${fmt(c.points, 2)}</td>`).join('')}
+          <td class="n sum"><b>${fmt(s.total)}</b></td><td class="c sum">${esc(App.pages.scores.fmtGrade(s.grade))}</td>
+          <td class="c sum">${attTag(s.attendance.status)}</td><td class="c sum">${resultTag(s.result)}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${edit ? saveBar('บันทึกคะแนน') : ''}`;
+    const pending = {};
+    const tbody = $('tbody', el);
+    const refresh = () => {
+      const bad = $$('input.invalid', tbody).length;
+      setChanges(el, Object.keys(pending).length);
+      const sv = $('[data-act=save]', el);
+      if (sv && bad) sv.disabled = true;
+    };
+    tbody.addEventListener('input', e => {
+      const inp = e.target;
+      if (!inp.dataset.aid) return;
+      const sid = Number(inp.closest('tr').dataset.sid), aid = Number(inp.dataset.aid);
+      const v = inp.value.trim();
+      const invalid = v !== '' && (isNaN(Number(v)) || Number(v) < 0 || Number(v) > Number(inp.dataset.max));
+      inp.classList.toggle('invalid', invalid);
+      const orig = String(scoreOf(aid, sid));
+      const k = aid + '|' + sid;
+      if (v === orig) delete pending[k]; else pending[k] = v === '' ? null : Number(v);
+      inp.parentNode.classList.toggle('changed', k in pending);
+      refresh();
+    });
+    tbody.addEventListener('keydown', e => {
+      const inp = e.target;
+      if (!inp.dataset.aid) return;
+      const r = Number(inp.dataset.r), c = Number(inp.dataset.c);
+      let next = null;
+      if (e.key === 'Enter' || e.key === 'ArrowDown') next = $(`input[data-r="${r + 1}"][data-c="${c}"]`, tbody);
+      else if (e.key === 'ArrowUp') next = $(`input[data-r="${r - 1}"][data-c="${c}"]`, tbody);
+      else if (e.key === 'ArrowRight' && inp.selectionStart === inp.value.length) next = $(`input[data-r="${r}"][data-c="${c + 1}"]`, tbody);
+      else if (e.key === 'ArrowLeft' && inp.selectionStart === 0) next = $(`input[data-r="${r}"][data-c="${c - 1}"]`, tbody);
+      if (next) { e.preventDefault(); next.focus(); next.select(); }
+    });
+    tbody.addEventListener('focusin', e => { if (e.target.dataset.aid) e.target.select(); });
+    bindStudentLinks(el);
+    const save = $('[data-act=save]', el);
+    if (save) save.onclick = async () => {
+      save.disabled = true;
+      const changes = Object.keys(pending).map(k => { const [aid, sid] = k.split('|'); return { assignment_id: Number(aid), student_id: Number(sid), score: pending[k] }; });
+      try {
+        const r = await call('book.saveCells', { course_id: App.ctx.course_id, changes });
+        App.dirty = false;
+        toast('บันทึกคะแนนแล้ว ' + (r.inserted + r.updated + r.cleared) + ' ช่อง');
+        go('scores', {});
+      } catch (e) { showError(e); save.disabled = false; }
+    };
+    setChanges(el, 0);
+  },
+  fmtGrade(g) { return g === null || g === undefined ? '-' : (g % 1 === 0 ? String(g) : g.toFixed(1)); }
+};
+
+/* ---------------- เลือกนักเรียน (ใช้ในคะแนนรายบุคคล/ค้นหารายบุคคล) ---------------- */
+async function studentPicker(el, page, studentId) {
+  const roster = await call('book.roster', { course_id: App.ctx.course_id });
+  const list = App.ctx.classroom_id ? roster.filter(s => s.classroom_id === Number(App.ctx.classroom_id)) : roster;
+  const idx = list.findIndex(s => s.student_id === Number(studentId));
+  el.insertAdjacentHTML('afterbegin', `<div class="bar picker no-print">
+    <label class="f grow"><span>เลือกนักเรียน หรือกรอกเลขประจำตัว</span><input type="search" list="roster-list" data-pick placeholder="เช่น 900001 หรือชื่อ" value="${idx >= 0 ? esc(list[idx].student_code + ' ' + list[idx].full_name) : ''}"></label>
+    <datalist id="roster-list">${list.map(s => `<option value="${esc(s.student_code + ' ' + s.full_name)}">${esc('ห้อง ' + s.room_name + ' เลขที่ ' + (s.roll_no || '-'))}</option>`).join('')}</datalist>
+    <button class="btn" data-nav="-1" ${idx <= 0 ? 'disabled' : ''}>← คนก่อนหน้า</button>
+    <button class="btn" data-nav="1" ${idx < 0 || idx >= list.length - 1 ? 'disabled' : ''}>คนถัดไป →</button></div>`);
+  const inp = $('[data-pick]', el);
+  const choose = () => {
+    const v = inp.value.trim();
+    if (!v) return;
+    const code = v.split(/\s+/)[0];
+    const hit = list.find(s => s.student_code === code) || list.find(s => (s.student_code + ' ' + s.full_name).indexOf(v) >= 0 || s.full_name.indexOf(v) >= 0);
+    if (hit) go(page, { student_id: hit.student_id });
+    else toast('ไม่พบนักเรียน "' + v + '" ในรายวิชา/ห้องนี้', true);
+  };
+  inp.addEventListener('change', choose);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') choose(); });
+  $$('[data-nav]', el).forEach(b => b.onclick = () => go(page, { student_id: list[idx + Number(b.dataset.nav)].student_id }));
+  if (!studentId) {
+    el.insertAdjacentHTML('beforeend', `<div class="section"><h2>รายการค้นหา <small>${list.length} คน</small></h2><div class="chip-list">${list.slice(0, 60).map(s =>
+      `<button class="chip" data-sid="${s.student_id}">${esc(s.student_code)} <span>${esc(s.full_name)} • ${esc(s.room_name)}</span></button>`).join('')}</div></div>`);
+    $$('[data-sid]', el).forEach(b => b.onclick = () => go(page, { student_id: Number(b.dataset.sid) }));
+    inp.focus();
+  }
+  return list;
+}
+
+/* ---------------- 🎯 คะแนนรายบุคคล ---------------- */
+App.pages.individual = {
+  ctx: 'course+room',
+  async render(el, p) {
+    el.innerHTML = '';
+    await studentPicker(el, 'individual', p.student_id);
+    if (!p.student_id) return;
+    const d = await call('book.student', { course_id: App.ctx.course_id, student_id: p.student_id });
+    const r = d.result, s = d.student;
+    const edit = d.course.can_edit;
+    const cat = {};
+    r.categories.forEach(c => { cat[c.name] = c.points; });
+    el.insertAdjacentHTML('beforeend', `
+      <div class="ledger" style="grid-template-columns:repeat(7,1fr)">
+        <div><div class="k">ห้อง</div><div class="v sm">${esc(s.room_name)}</div></div>
+        <div><div class="k">เลขที่</div><div class="v sm">${s.roll_no || '-'}</div></div>
+        <div><div class="k">เลขประจำตัว</div><div class="v sm">${esc(s.student_code)}</div></div>
+        <div style="grid-column:span 1"><div class="k">ชื่อ-สกุล</div><div class="v sm" style="font-size:18px">${esc(s.full_name)}</div></div>
+        <div><div class="k">คะแนนรวม</div><div class="v sm">${fmt(r.total)}</div></div>
+        <div><div class="k">เกรด</div><div class="v sm">${App.pages.scores.fmtGrade(r.grade)}</div></div>
+        <div><div class="k">เกรดสุดท้าย</div><div class="v sm ${r.special || r.result === '0' ? 'warn' : ''}">${esc(r.result)}</div></div>
+      </div>
+      ${band('คะแนนแต่ละส่วน', r.categories.map(c => [c.name + ' (' + fmt(c.weight) + ')', fmt(c.points, 2)]))}
+      <div class="section"><h2>คะแนนงานรายบุคคล <small>งาน 1–${d.assignments.filter(a => a.kind !== 'EXAM').length} และคะแนนสอบ</small></h2>
+      <div class="tbl-wrap"><table class="t entry"><thead><tr><th class="n">ลำดับ</th><th>ชื่องาน</th><th>หมวด</th><th class="n">เต็ม</th><th>กำหนดส่ง</th><th>วันที่ส่ง</th><th>สถานะ</th><th class="n">คะแนน</th><th>หมายเหตุ</th></tr></thead><tbody>
+        ${d.assignments.map((a, i) => `<tr data-i="${i}"><td class="n">${a.seq_no && a.seq_no < 100 ? a.seq_no : ''}</td><td>${esc(a.title)}</td><td class="muted">${esc(a.category_name)}</td>
+          <td class="n">${fmt(a.max_score)}</td><td>${a.due_date ? thDate(a.due_date) : '-'}</td><td>${a.kind === 'EXAM' ? '' : (a.submitted_date ? thDate(a.submitted_date) : '-')}</td>
+          <td>${App.pages.search.stateTag(a)}</td>
+          <td class="n"><input class="score" type="text" inputmode="decimal" value="${a.score === null ? '' : a.score}" ${edit ? '' : 'disabled'}></td>
+          <td><input class="cmt" type="text" maxlength="500" value="${esc(a.teacher_comment || '')}" ${edit ? '' : 'disabled'}></td></tr>`).join('')}
+      </tbody></table></div></div>
+      ${edit ? saveBar('บันทึกคะแนน') : ''}`);
+    const tbody = $('table.entry tbody', el);
+    const pending = {};
+    tbody.addEventListener('input', e => {
+      const i = Number(e.target.closest('tr').dataset.i), a = d.assignments[i];
+      const tr = e.target.closest('tr');
+      const sc = $('input.score', tr).value.trim(), cm = $('input.cmt', tr).value;
+      const invalid = sc !== '' && (isNaN(Number(sc)) || Number(sc) < 0 || Number(sc) > a.max_score);
+      $('input.score', tr).classList.toggle('invalid', invalid);
+      const changed = sc !== (a.score === null ? '' : String(a.score)) || (cm || '') !== (a.teacher_comment || '');
+      if (changed) pending[a.assignment_id] = { assignment_id: a.assignment_id, student_id: s.student_id, score: sc === '' ? null : Number(sc), teacher_comment: cm };
+      else delete pending[a.assignment_id];
+      tr.classList.toggle('changed', changed);
+      setChanges(el, Object.keys(pending).length);
+      if ($$('input.invalid', tbody).length) $('[data-act=save]', el).disabled = true;
+    });
+    tbody.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.target.classList.contains('score')) {
+        e.preventDefault();
+        const inputs = $$('input.score', tbody);
+        const next = inputs[inputs.indexOf(e.target) + (e.key === 'ArrowUp' ? -1 : 1)];
+        if (next) { next.focus(); next.select(); }
+      }
+    });
+    const save = $('[data-act=save]', el);
+    if (save) save.onclick = async () => {
+      save.disabled = true;
+      try {
+        await call('book.saveCells', { course_id: App.ctx.course_id, changes: Object.values(pending) });
+        App.dirty = false; toast('บันทึกคะแนนของ ' + s.full_name + ' แล้ว'); go('individual', { student_id: s.student_id });
+      } catch (err) { showError(err); save.disabled = false; }
+    };
+    setChanges(el, 0);
+  }
+};
+</script>
+
+  <script>
+'use strict';
+/* ==========================================================================
+ * JsPages2 — เช็กชื่อมาเรียน, ค้นหารายบุคคล, งานค้าง, รายงานห้อง, จัดอันดับ, นักเรียนเสี่ยง, สรุปผลการเรียน
+ * ========================================================================== */
+
+/* ---------------- 🕘 เช็กชื่อมาเรียน ---------------- */
+const ATT_MARK = { PRESENT: '/', LATE: 'ส', ACTIVITY: 'กจ', LEAVE: 'ล', ABSENT: 'ข' };
+const ATT_CYCLE = ['PRESENT', 'LATE', 'ACTIVITY', 'LEAVE', 'ABSENT', null];
+
+App.pages.attendance = {
+  ctx: 'course+room',
+  async render(el, p) {
+    const tab = p.tab || 'grid';
+    const tabs = `<div class="tabs" role="tablist">
+      <button role="tab" data-tab="grid" aria-selected="${tab === 'grid'}">ตารางเช็กชื่อ</button>
+      <button role="tab" data-tab="check" aria-selected="${tab === 'check'}">เช็กชื่อรายคาบ</button>
+      <button role="tab" data-tab="overview" aria-selected="${tab === 'overview'}">ภาพรวมเวลาเรียน</button></div>`;
+    const bindTabs = () => $$('.tabs [data-tab]', el).forEach(b => b.onclick = () => go('attendance', { tab: b.dataset.tab }));
+    if (tab === 'overview') { await this.overview(el, tabs); bindTabs(); return; }
+    if (!App.ctx.classroom_id) {
+      roomPicker(el, 'เลือกห้องเช็กเวลาเรียน');
+      el.insertAdjacentHTML('afterbegin', tabs);
+      bindTabs();
+      return;
+    }
+    if (tab === 'check') await this.check(el, p, tabs);
+    else await this.grid(el, tabs);
+    bindTabs();
+  },
+
+  /** ตารางทั้งห้อง: คอลัมน์ = ครั้งที่เช็ก (เหมือนชีต เวลาเรียน_ห้องXX) */
+  async grid(el, tabs) {
+    const d = await call('attendance.grid', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id });
+    const edit = d.course.can_edit;
+    const pending = {};
+    const mark = (sid, i) => { const k = d.sessions[i].session_id + '|' + sid; return k in pending ? pending[k] : d.students.find(s => s.student_id === sid).marks[i]; };
+    const cell = (s, i) => {
+      const k = d.sessions[i].session_id + '|' + s.student_id;
+      const m = mark(s.student_id, i);
+      return `<td class="am m-${m || 'none'}${k in pending ? ' changed' : ''}" data-sid="${s.student_id}" data-i="${i}">${m ? ATT_MARK[m] || m : ''}</td>`;
+    };
+    el.innerHTML = `${tabs}
+      <div class="banner no-print"><b>ระบบเช็กชื่อมาเรียน • ห้อง ${esc(d.classroom.room_name)}</b>
+        <span>ปีการศึกษา ${d.course.academic_year} ภาคเรียน ${d.course.semester} • ${esc(d.course.label)} • แต่ละห้องเก็บวันที่แยกกันอิสระ</span></div>
+      <div class="bar no-print">
+        <p class="note grow" style="margin:0"><b>/</b> มา • <b>ส</b> สาย • <b>กจ</b> กิจกรรม • <b>ล</b> ลา • <b>ข</b> ขาด ${edit ? '— คลิกช่องเพื่อเปลี่ยนสถานะ, คลิกหัวคอลัมน์เพื่อแก้คาบนั้น' : ''}</p>
+        ${edit ? '<button class="btn primary" data-act="new">+ เช็กชื่อครั้งใหม่</button>' : ''}
+        <button class="btn" onclick="window.print()">พิมพ์</button></div>
+      <div class="print-only"><h2>สรุปเวลาเรียน ห้อง ${esc(d.classroom.room_name)} • ${esc(d.course.label)}</h2></div>
+      ${d.sessions.length ? `<div class="tbl-wrap grid-wrap" data-scroll><table class="t matrix att"><thead><tr>
+        <th class="stick1 roll">เลขที่</th><th class="stick2">ชื่อ-สกุล</th>
+        ${d.sessions.map((s, i) => `<th class="sess" data-i="${i}" title="ครั้งที่ ${s.no} • ${thDate(s.session_date, true)} คาบ ${s.period_no}${s.topic ? ' • ' + esc(s.topic) : ''}"><span class="no">${s.no}</span><span class="mx">${thShort(s.session_date)}</span></th>`).join('')}
+        <th class="n sum">มาเรียน</th><th class="n sum">เช็ก</th><th class="n sum">เวลาเรียน</th><th class="sum">สถานะ</th></tr></thead><tbody>
+        ${d.students.map(s => `<tr><td class="stick1 roll">${s.roll_no || ''}</td><td class="stick2" title="${esc(s.student_code)}">${esc(s.full_name)}</td>
+          ${d.sessions.map((x, i) => cell(s, i)).join('')}
+          <td class="n sum">${s.present}</td><td class="n sum">${s.total}</td><td class="n sum ${s.status === 'มส' ? 'redpen' : ''}">${pct(s.percent)}</td><td class="sum">${attTag(s.status)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty">ห้องนี้ยังไม่เคยเช็กชื่อ — กด "+ เช็กชื่อครั้งใหม่" เพื่อเริ่ม</div>'}
+      ${edit ? saveBar('บันทึกการเช็กชื่อ') : ''}`;
+    const wrap = $('[data-scroll]', el);
+    if (wrap) wrap.scrollLeft = wrap.scrollWidth;
+    setChanges(el, 0);
+    if (!edit) return;
+    el.addEventListener('click', e => {
+      const td = e.target.closest('td.am');
+      if (td) {
+        const sid = Number(td.dataset.sid), i = Number(td.dataset.i);
+        const cur = mark(sid, i);
+        const next = ATT_CYCLE[(ATT_CYCLE.indexOf(cur) + 1) % ATT_CYCLE.length];
+        const k = d.sessions[i].session_id + '|' + sid;
+        const orig = d.students.find(s => s.student_id === sid).marks[i];
+        if (next === orig) delete pending[k]; else pending[k] = next;
+        td.outerHTML = cell(d.students.find(s => s.student_id === sid), i);
+        setChanges(el, Object.keys(pending).length);
+        return;
+      }
+      const th = e.target.closest('th.sess');
+      if (th) { const s = d.sessions[Number(th.dataset.i)]; go('attendance', { tab: 'check', session_date: s.session_date, period_no: s.period_no }); }
+    });
+    const nb = $('[data-act=new]', el);
+    if (nb) nb.onclick = () => {
+      modal({
+        title: 'เช็กชื่อครั้งใหม่ — ห้อง ' + d.classroom.room_name,
+        body: `<div class="grid2"><label class="f"><span>วันที่</span><input type="date" name="session_date" value="${App.boot.today}"></label>
+          <label class="f"><span>คาบที่</span><input type="number" name="period_no" min="1" max="12" value="1"></label></div>
+          <label class="f"><span>หัวข้อที่สอน (ไม่บังคับ)</span><input type="text" name="topic" maxlength="255"></label>
+          <p class="note" style="margin:0">ระบบจะตั้งทุกคนเป็น "มา (/)" แล้วแก้เฉพาะคนที่ไม่มาในตาราง</p>`,
+        actions: [{ label: 'ยกเลิก' }, { label: 'สร้าง', kind: 'primary', onClick: async (close, root) => {
+          const f = formData(root);
+          await call('attendance.save', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id, session_date: f.session_date, period_no: f.period_no, topic: f.topic,
+            records: d.students.map(s => ({ student_id: s.student_id, status_code: 'PRESENT' })) });
+          toast('สร้างการเช็กชื่อแล้ว'); App.dirty = false; go('attendance', { tab: 'grid' });
+        } }]
+      });
+    };
+    $('[data-act=save]', el).onclick = async e => {
+      const btn = e.target; btn.disabled = true;
+      const changes = Object.keys(pending).map(k => { const [ses, sid] = k.split('|'); return { session_id: Number(ses), student_id: Number(sid), status_code: pending[k] }; });
+      try {
+        await call('attendance.saveCells', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id, changes });
+        App.dirty = false; toast('บันทึกการเช็กชื่อแล้ว ' + changes.length + ' ช่อง'); go('attendance', { tab: 'grid' });
+      } catch (err) { showError(err); btn.disabled = false; }
+    };
+  },
+
+  /** เช็กชื่อทีละคาบ (ปุ่มใหญ่ เหมาะกับมือถือ) */
+  async check(el, p, tabs) {
+    const date = p.session_date || App.boot.today;
+    const period = Number(p.period_no || 1);
+    const d = await call('attendance.get', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id, session_date: date, period_no: period });
+    const edit = d.course.can_edit;
+    const statuses = App.boot.attendance_statuses;
+    const isNew = !d.session;
+    const rows = d.students.map(s => {
+      const r = Object.assign({}, s);
+      if (isNew && edit) r.status_code = 'PRESENT';
+      r.orig = JSON.stringify([r.status_code, r.note || null]);
+      return r;
+    });
+    let topicChanged = false;
+    el.innerHTML = `${tabs}
+      <div class="bar">
+        <label class="f"><span>วันที่</span><input type="date" data-f="session_date" value="${esc(date)}"></label>
+        <label class="f"><span>คาบที่</span><select data-f="period_no">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option ${n === period ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label class="f grow"><span>หัวข้อที่สอน</span><input type="text" data-topic maxlength="255" value="${esc(d.session ? d.session.topic || '' : '')}" ${edit ? '' : 'disabled'}></label>
+      </div>
+      <p style="margin:-6px 0 14px">ห้อง ${esc(d.classroom.room_name)} • ${isNew ? '<span class="tag late">ยังไม่เคยเช็กชื่อคาบนี้</span> ตั้งค่าเริ่มต้นเป็น "มาเรียน" ให้ทุกคน แก้เฉพาะคนที่ไม่มา แล้วกดบันทึก' : '<span class="tag ok">เช็กชื่อแล้ว</span> แก้ไขได้แล้วกดบันทึก'}</p>
+      ${edit ? `<div class="bar no-print"><button class="btn small" data-allpresent>ทุกคนมาเรียน</button><span class="grow"></span><span class="note" data-counts></span></div>` : ''}
+      <div class="tbl-wrap"><table class="t entry"><thead><tr><th class="roll">เลขที่</th><th>ชื่อ-สกุล</th><th>สถานะ</th><th>หมายเหตุ</th><th class="n">เวลาเรียนสะสม</th></tr></thead><tbody>
+        ${rows.map((s, i) => `<tr data-i="${i}"><td class="roll">${s.roll_no || ''}</td>
+          <td>${esc(s.full_name)}${s.nickname ? ` <span class="muted">(${esc(s.nickname)})</span>` : ''}</td>
+          <td><div class="seg" role="group" aria-label="สถานะ ${esc(s.full_name)}">${statuses.map(st =>
+            `<button type="button" data-v="${st.status_code}" title="${esc(st.name_th)}" aria-label="${esc(st.name_th)}" aria-pressed="${s.status_code === st.status_code}" ${edit ? '' : 'disabled'}>${esc(st.short_label)}</button>`).join('')}</div></td>
+          <td><input class="cmt" type="text" maxlength="255" value="${esc(s.note || '')}" ${edit ? '' : 'disabled'} aria-label="หมายเหตุ ${esc(s.full_name)}"></td>
+          <td class="n ${s.percent !== null && s.percent < App.boot.settings.min_attendance_percent ? 'redpen' : ''}">${pct(s.percent)}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${edit ? `<div class="savebar">${d.session ? '<button class="btn danger small" data-act="delete">ลบคาบนี้</button>' : ''}<span class="grow" data-changes></span><button class="btn primary" data-act="save">บันทึกการเช็กชื่อ</button></div>` : ''}
+      <div class="section" style="margin-top:28px"><h2>คาบที่เช็กแล้วล่าสุด</h2>
+        ${d.recent.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th class="n">ครั้งที่</th><th>วันที่</th><th class="n">คาบ</th><th>หัวข้อ</th>${statuses.map(st => `<th class="n">${esc(st.name_th)}</th>`).join('')}</tr></thead><tbody>
+          ${d.recent.map(r => `<tr class="clickable ${r.session_date === date && r.period_no === period ? 'sel' : ''}" data-date="${r.session_date}" data-period="${r.period_no}">
+            <td class="n">${r.no}</td><td>${thDate(r.session_date)}</td><td class="n">${r.period_no}</td><td class="muted">${esc(r.topic || '')}</td>
+            ${statuses.map(st => `<td class="n ${!st.counts_as_present && r.counts[st.status_code] ? 'redpen' : ''}">${r.counts[st.status_code] || 0}</td>`).join('')}</tr>`).join('')}
+        </tbody></table></div>` : '<div class="empty">ห้องนี้ยังไม่เคยเช็กชื่อ</div>'}</div>`;
+    const tbody = $('tbody', el);
+    const refresh = () => {
+      let changed = 0;
+      const counts = {};
+      rows.forEach((s, i) => {
+        const tr = tbody.children[i];
+        const c = JSON.stringify([s.status_code, s.note || null]) !== s.orig;
+        if (c) changed++;
+        tr.classList.toggle('changed', c);
+        counts[s.status_code || 'none'] = (counts[s.status_code || 'none'] || 0) + 1;
+        $$('.seg button', tr).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === s.status_code)));
+      });
+      App.dirty = changed > 0 || topicChanged;
+      const ct = $('[data-counts]', el);
+      if (ct) ct.textContent = statuses.map(st => st.name_th + ' ' + (counts[st.status_code] || 0)).join(' • ');
+      const ch = $('[data-changes]', el);
+      if (ch) ch.textContent = changed ? 'แก้ไข ' + changed + ' คน (ยังไม่บันทึก)' : '';
+    };
+    tbody.addEventListener('click', e => {
+      const b = e.target.closest('.seg button');
+      if (!b || !edit) return;
+      rows[Number(b.closest('tr').dataset.i)].status_code = b.dataset.v;
+      refresh();
+    });
+    tbody.addEventListener('input', e => {
+      if (!e.target.classList.contains('cmt')) return;
+      rows[Number(e.target.closest('tr').dataset.i)].note = e.target.value || null;
+      refresh();
+    });
+    const topic = $('[data-topic]', el);
+    if (topic) topic.addEventListener('input', () => { topicChanged = true; refresh(); });
+    const all = $('[data-allpresent]', el);
+    if (all) all.onclick = () => { rows.forEach(s => { s.status_code = 'PRESENT'; }); refresh(); };
+    $$('[data-f]', el).forEach(i => i.addEventListener('change', () => {
+      go('attendance', { tab: 'check', session_date: $('[data-f=session_date]', el).value, period_no: $('[data-f=period_no]', el).value });
+    }));
+    $$('tr[data-date]', el).forEach(tr => tr.onclick = () => go('attendance', { tab: 'check', session_date: tr.dataset.date, period_no: Number(tr.dataset.period) }));
+    const save = $('[data-act=save]', el);
+    if (save) save.onclick = async () => {
+      save.disabled = true;
+      try {
+        const r = await call('attendance.save', {
+          course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id, session_date: date, period_no: period, topic: topic ? topic.value : '',
+          records: rows.map(s => ({ student_id: s.student_id, status_code: s.status_code, note: s.note }))
+        });
+        App.dirty = false;
+        toast('บันทึกการเช็กชื่อแล้ว ' + r.saved + ' คน');
+        go('attendance', { tab: 'check', session_date: date, period_no: period });
+      } catch (e) { showError(e); save.disabled = false; }
+    };
+    const del = $('[data-act=delete]', el);
+    if (del) del.onclick = async () => {
+      if (!await confirmBox('ลบคาบเรียน', 'ลบการเช็กชื่อวันที่ ' + thDate(date, true) + ' คาบที่ ' + period + ' ทั้งหมด?', 'ลบ', true)) return;
+      try {
+        await call('attendance.removeSession', { session_id: d.session.session_id });
+        App.dirty = false; toast('ลบคาบเรียนแล้ว');
+        go('attendance', { tab: 'grid' });
+      } catch (e) { showError(e); }
+    };
+    refresh();
+  },
+
+  /** ภาพรวมเวลาเรียน (ทุกห้องได้) เหมือนชีต เวลาเรียน_ภาพรวม */
+  async overview(el, tabs) {
+    const book = await loadBook(false);
+    const s = book.summary;
+    el.innerHTML = `${tabs}${printHead('ภาพรวมเวลาเรียน', book)}
+      <div class="ledger" style="grid-template-columns:repeat(5,1fr)">
+        <div><div class="k">📊 เวลาเรียนเฉลี่ย</div><div class="v">${pct(s.attendance_avg)}</div></div>
+        <div><div class="k">✅ ปกติ ≥ ${s.min_attendance_percent}%</div><div class="v">${s.attendance_ok}</div></div>
+        <div><div class="k">⚠️ ต่ำกว่า ${s.min_attendance_percent}%</div><div class="v ${s.attendance_low ? 'warn' : ''}">${s.attendance_low}</div></div>
+        <div><div class="k">👤 มาเรียนเฉลี่ย (ครั้ง)</div><div class="v">${fmt(s.attendance_avg_present)}</div></div>
+        <div><div class="k">🗓️ ครั้งที่เช็กสูงสุด</div><div class="v">${s.attendance_max_sessions}</div></div>
+      </div>
+      <div class="bar no-print"><span class="grow"></span><button class="btn" onclick="window.print()">พิมพ์</button></div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th class="roll">เลขที่</th><th>รหัส</th><th>คำนำหน้า</th><th>ชื่อ</th><th>สกุล</th><th>ห้อง</th>
+        <th class="n">มาเรียน</th><th class="n">จำนวนครั้งที่เช็ก</th><th class="n">เวลาเรียน</th><th>สถานะ</th></tr></thead><tbody>
+        ${book.students.map(x => `<tr><td class="roll">${x.roll_no || ''}</td><td>${esc(x.student_code)}</td><td>${esc(x.prefix || '')}</td><td>${esc(x.first_name)}</td><td>${esc(x.last_name)}</td><td>${esc(x.room_name)}</td>
+          <td class="n">${x.attendance.present}</td><td class="n">${x.attendance.total}</td><td class="n ${x.attendance.status === 'มส' ? 'redpen' : ''}">${pct(x.attendance.percent)}</td><td>${attTag(x.attendance.status)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+};
+
+/* ---------------- 🔎 ค้นหารายบุคคล ---------------- */
+App.pages.search = {
+  ctx: 'course+room',
+  stateTag(a) {
+    switch (a.state) {
+      case 'SUBMITTED': return '<span class="tag ok">ส่งแล้ว</span>';
+      case 'LATE': return '<span class="tag late">ส่งช้า</span>';
+      case 'MISSING': return '<span class="tag red">ยังไม่ส่ง</span>';
+      case 'EXCUSED': return '<span class="tag">ยกเว้น</span>';
+      case 'SCORED': return '<span class="tag ok">มีคะแนน</span>';
+      case 'NO_SCORE': return '<span class="tag red">ยังไม่มีคะแนน</span>';
+      default: return '-';
+    }
+  },
+  async render(el, p) {
+    el.innerHTML = '';
+    await studentPicker(el, 'search', p.student_id);
+    if (!p.student_id) return;
+    const d = await call('book.student', { course_id: App.ctx.course_id, student_id: p.student_id });
+    const r = d.result, s = d.student;
+    el.insertAdjacentHTML('beforeend', `
+      <div class="profile-head"><h2>${esc(s.full_name)}</h2><span class="muted">เลขประจำตัว ${esc(s.student_code)} • ห้อง ${esc(s.room_name)} เลขที่ ${s.roll_no || '-'}</span>
+        <span class="grow"></span><button class="btn small no-print" data-act="all">ดูทุกวิชาของนักเรียนคนนี้</button></div>
+      <div class="ledger" style="grid-template-columns:repeat(4,1fr)">
+        <div><div class="k">คะแนนรวม</div><div class="v">${fmt(r.total)}</div></div>
+        <div><div class="k">เกรดสุดท้าย</div><div class="v ${r.special || r.result === '0' ? 'warn' : ''}">${esc(r.result)}</div></div>
+        <div><div class="k">อัตราการส่ง</div><div class="v">${fmt(r.submit_percent)}<small>%</small></div></div>
+        <div><div class="k">สถานะ</div><div class="v sm">${submitTag(r.submit_status)}</div></div>
+      </div>
+      ${band('การส่งงานและเวลาเรียน', [['✅ ส่งแล้ว', r.submitted], ['📌 ยังไม่ส่ง', r.not_submitted, 'warn'], ['⏰ ส่งช้า', r.late, 'warn'],
+        ['🕘 เวลาเรียน', pct(r.attendance.percent)], ['สถานะเวลาเรียน', r.attendance.status || '-']])}
+      <div class="tbl-wrap"><table class="t"><thead><tr><th class="n">ลำดับ</th><th>ชื่องาน</th><th>กำหนดส่ง</th><th>วันที่ส่ง</th><th>สถานะ</th><th class="n">เกินกำหนด (วัน)</th><th class="n">คะแนน</th><th>ลิงก์งาน</th></tr></thead><tbody>
+        ${d.assignments.map(a => `<tr><td class="n">${a.seq_no && a.seq_no < 100 ? a.seq_no : ''}</td><td>${esc(a.title)}</td>
+          <td>${a.due_date ? thDate(a.due_date) : '-'}</td><td>${a.submitted_date ? thDate(a.submitted_date) : '-'}</td><td>${this.stateTag(a)}</td>
+          <td class="n ${a.days_over ? 'redpen' : ''}">${a.days_over || '-'}</td>
+          <td class="n">${a.score === null ? '-' : fmt(a.score)}<span class="muted">/${fmt(a.max_score)}</span></td>
+          <td>${a.link_url ? `<a href="${esc(a.link_url)}" target="_blank" rel="noopener">เปิด</a>` : '-'}</td></tr>`).join('')}
+      </tbody></table></div>`);
+    $('[data-act=all]', el).onclick = () => go('profile', { student_id: s.student_id });
+  }
+};
+
+/* ---------------- ตารางรายชื่อพร้อมการส่งงาน (ใช้กับ งานค้าง / รายงานห้อง) ---------------- */
+function missingTitles(book, s) {
+  const byId = {};
+  book.assignments.forEach(a => { byId[a.assignment_id] = a; });
+  return s.missing_ids.map(id => asgHead(byId[id])).join(', ');
+}
+function submitTable(book, rows, showList) {
+  return `<div class="tbl-wrap"><table class="t"><thead><tr><th class="roll">เลขที่</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th>
+    <th class="n">ส่งแล้ว</th><th class="n">ทั้งหมด</th><th class="n">ค้าง</th><th class="n">%</th><th>สถานะ</th>${showList ? '<th>งานที่ยังไม่ส่ง</th>' : ''}</tr></thead><tbody>
+    ${rows.map(s => `<tr><td class="roll">${s.roll_no || ''}</td><td>${esc(s.student_code)}</td><td><a href="#" data-student="${s.student_id}">${esc(s.full_name)}</a></td><td>${esc(s.room_name)}</td>
+      <td class="n">${s.submitted}</td><td class="n">${s.work_total}</td><td class="n ${s.missing ? 'redpen' : ''}">${s.missing}</td><td class="n">${pct(s.submit_percent)}</td>
+      <td>${submitTag(s.submit_status)}</td>${showList ? `<td class="missing-list">${esc(missingTitles(book, s)) || '<span class="muted">-</span>'}</td>` : ''}</tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+/* ---------------- 📌 งานค้าง ---------------- */
+App.pages.missing = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(false);
+    const rows = book.students.filter(s => s.missing > 0).sort((a, b) => b.missing - a.missing || a.room_name.localeCompare(b.room_name, 'th', { numeric: true }) || (a.roll_no || 0) - (b.roll_no || 0));
+    el.innerHTML = `${printHead('รายชื่อนักเรียนที่มีงานค้าง', book)}
+      <div class="bar"><p class="note grow" style="margin:0">รายชื่อนักเรียนที่มีงานค้าง กรองตามห้องเรียน พร้อมจำนวนงานที่ส่ง งานที่ยังไม่ส่ง สถานะ และรายชื่องานค้าง
+        ${book.rules.missing_rule === 'OVERDUE' ? '(นับเฉพาะงานที่เลยกำหนดส่ง)' : '(นับทุกงานที่ยังไม่ส่ง)'}</p>
+        <span class="tag red" style="font-size:15px;line-height:30px;padding:0 14px">นักเรียนที่ต้องติดตาม ${rows.length}</span>
+        <button class="btn no-print" onclick="window.print()">พิมพ์</button></div>
+      ${rows.length ? submitTable(book, rows, true) : '<div class="empty">ไม่มีนักเรียนที่มีงานค้าง 🎉</div>'}`;
+    bindStudentLinks(el);
+  }
+};
+
+/* ---------------- 📊 รายงานห้อง ---------------- */
+App.pages.roomreport = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(false);
+    const s = book.summary;
+    el.innerHTML = `${printHead('รายงานห้อง', book)}
+      <p class="page-sub">สรุปนักเรียน คะแนนงาน และสถานะติดตาม • ${esc(ctxRoomLabel())}</p>
+      <div class="ledger" style="grid-template-columns:repeat(4,1fr)">
+        <div><div class="k">นักเรียนทั้งหมด</div><div class="v">${s.students}</div></div>
+        <div><div class="k">อัตราการส่งงาน</div><div class="v">${fmt(s.submission_rate)}<small>%</small></div></div>
+        <div><div class="k">มีงานค้าง</div><div class="v ${s.students_with_missing ? 'warn' : ''}">${s.students_with_missing}</div></div>
+        <div><div class="k">🔴 เสี่ยง</div><div class="v ${book.students.some(x => x.submit_status === 'RISK') ? 'warn' : ''}">${book.students.filter(x => x.submit_status === 'RISK').length}</div></div>
+      </div>
+      <div class="bar no-print"><span class="grow"></span><button class="btn" onclick="window.print()">พิมพ์</button></div>
+      ${submitTable(book, book.students, true)}`;
+    bindStudentLinks(el);
+  }
+};
+
+/* ---------------- 🏆 จัดอันดับ ---------------- */
+App.pages.ranking = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(false);
+    const rows = book.students.slice().sort((a, b) => a.rank - b.rank);
+    el.innerHTML = `${printHead('จัดอันดับนักเรียนตามคะแนน', book)}
+      <div class="bar"><p class="note grow" style="margin:0">เรียงตามคะแนนรวมจากมากไปน้อย อัปเดตอัตโนมัติตามรายชื่อนักเรียน • ${esc(ctxRoomLabel())}</p><button class="btn no-print" onclick="window.print()">พิมพ์</button></div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th class="n">อันดับ</th><th>รหัสนักเรียน</th><th>ชื่อ</th><th>นามสกุล</th><th>ห้อง</th><th class="n">คะแนนรวม</th><th class="c">เกรดสุดท้าย</th><th>สถานะเวลาเรียน</th></tr></thead><tbody>
+        ${rows.map(s => `<tr class="${s.rank <= 3 ? 'top' : ''}"><td class="n"><b>${s.rank}</b></td><td>${esc(s.student_code)}</td><td><a href="#" data-student="${s.student_id}">${esc((s.prefix || '') + s.first_name)}</a></td><td>${esc(s.last_name)}</td>
+          <td>${esc(s.room_name)}</td><td class="n"><b>${fmt(s.total)}</b></td><td class="c">${resultTag(s.result)}</td><td>${attTag(s.attendance.status)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    bindStudentLinks(el);
+  }
+};
+
+/* ---------------- ⚠️ นักเรียนเสี่ยง ---------------- */
+App.pages.risk = {
+  ctx: 'course+room',
+  async render(el) {
+    const book = await loadBook(false);
+    const rows = book.students.filter(s => s.result === '0' || s.result === 'ร' || s.result === 'มส');
+    const why = s => {
+      const out = [];
+      if (s.attendance.status === 'มส') out.push('เวลาเรียน ' + pct(s.attendance.percent));
+      if (s.not_submitted) out.push('งานยังไม่ส่ง ' + s.not_submitted + ' ชิ้น');
+      if (s.exam_missing) out.push('คะแนนสอบยังไม่ครบ ' + s.exam_missing);
+      if (s.grade === 0) out.push('คะแนนรวม ' + fmt(s.total));
+      return out;
+    };
+    el.innerHTML = `${printHead('นักเรียนที่ควรติดตาม', book)}
+      <div class="bar"><p class="note grow" style="margin:0">รวมผู้เรียนที่ได้ 0, ร หรือ มส. เพื่อให้ติดตามได้ทันที • ${esc(ctxRoomLabel())}</p>
+        <span class="tag red" style="font-size:15px;line-height:30px;padding:0 14px">${rows.length} คน</span><button class="btn no-print" onclick="window.print()">พิมพ์</button></div>
+      ${rows.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th class="roll">เลขที่</th><th>รหัสนักเรียน</th><th>ชื่อ</th><th>นามสกุล</th><th>ห้อง</th><th class="c">เกรดสุดท้าย</th><th class="n">เวลาเรียน</th><th>สถานะ</th><th>สาเหตุ</th></tr></thead><tbody>
+        ${rows.map(s => `<tr><td class="roll">${s.roll_no || ''}</td><td>${esc(s.student_code)}</td><td><a href="#" data-student="${s.student_id}">${esc((s.prefix || '') + s.first_name)}</a></td><td>${esc(s.last_name)}</td><td>${esc(s.room_name)}</td>
+          <td class="c">${resultTag(s.result)}</td><td class="n ${s.attendance.status === 'มส' ? 'redpen' : ''}">${pct(s.attendance.percent)}</td><td>${attTag(s.attendance.status)}</td>
+          <td><div class="tags">${why(s).map(w => `<span class="tag red">${esc(w)}</span>`).join('')}</div></td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty">ไม่มีนักเรียนที่ได้ 0, ร หรือ มส 🎉</div>'}`;
+    bindStudentLinks(el);
+  }
+};
+
+/* ---------------- 📄 สรุปผลการเรียน ---------------- */
+App.pages.summary = {
+  ctx: 'course+room',
+  async render(el) {
+    const [book, finals] = await Promise.all([loadBook(false), call('reports.finals', { course_id: App.ctx.course_id })]);
+    const c = book.course, s = book.summary;
+    const hasFinal = Object.keys(finals).length > 0;
+    const finalText = f => f ? (f.special_status || (f.grade === null ? '-' : (f.grade % 1 === 0 ? String(f.grade) : f.grade.toFixed(1)))) : '-';
+    el.innerHTML = `
+      <div class="report-head">
+        <h2>รายงานสรุปผลการเรียนรายวิชา</h2>
+        <div class="facts"><span>${esc(App.boot.school_name)}</span><span>วิชา ${esc(c.subject_code)} ${esc(c.subject_name)}</span><span>ชั้น ${esc(c.grade_level || '-')}</span>
+          <span>ภาคเรียนที่ ${c.semester}</span><span>ปีการศึกษา ${c.academic_year}</span><span>ครูผู้สอน ${esc(c.teacher_name)}</span><span>${esc(ctxRoomLabel())}</span></div>
+      </div>
+      <div class="bar no-print"><p class="note grow" style="margin:0">${hasFinal ? 'ยืนยันผลแล้ว (คอลัมน์ขวาสุด) — ถ้าจะแก้คะแนน งาน หรือเวลาเรียน ต้องกด "ยกเลิกการยืนยัน" ก่อน • ' : ''}คะแนนรวมคิดเต็ม 100 งานหรือสอบที่ยังไม่มีคะแนนนับเป็น 0</p>
+        ${c.can_edit ? '<button class="btn" data-act="finalize">ยืนยันผลการเรียน</button>' : ''}${c.can_edit && hasFinal ? '<button class="btn" data-act="unfinalize">ยกเลิกการยืนยัน</button>' : ''}<button class="btn" onclick="window.print()">พิมพ์</button></div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th class="roll">เลขที่</th><th>รหัส</th><th>คำนำหน้า</th><th>ชื่อ</th><th>สกุล</th><th>ห้อง</th>
+        ${book.categories.map(k => `<th class="n">${esc(k.name)}<br><span class="muted">(${fmt(k.weight)})</span></th>`).join('')}
+        <th class="n">รวม</th><th class="c">เกรดสุดท้าย</th><th>สถานะเวลาเรียน</th>${hasFinal ? '<th class="c">ผลที่ยืนยัน</th>' : ''}</tr></thead><tbody>
+        ${book.students.map(x => `<tr><td class="roll">${x.roll_no || ''}</td><td>${esc(x.student_code)}</td><td>${esc(x.prefix || '')}</td><td>${esc(x.first_name)}</td><td>${esc(x.last_name)}</td><td>${esc(x.room_name)}</td>
+          ${x.categories.map(k => `<td class="n">${fmt(k.points, 2)}</td>`).join('')}
+          <td class="n"><b>${fmt(x.total)}</b></td><td class="c">${resultTag(x.result)}</td><td>${attTag(x.attendance.status)}</td>
+          ${hasFinal ? `<td class="c">${resultTag(finalText(finals[x.student_id]))}</td>` : ''}</tr>`).join('')}
+      </tbody></table></div>
+      <div class="section" style="margin-top:24px"><h2>สรุปจำนวนตามระดับผลการเรียน</h2>
+        <div class="tbl-wrap"><table class="t"><thead><tr>${Object.keys(s.grade_counts).sort((a, b) => (isNaN(b) ? -1 : Number(b)) - (isNaN(a) ? -1 : Number(a))).map(g => `<th class="c">${g}</th>`).join('')}<th class="c">รวม</th></tr></thead>
+          <tbody><tr>${Object.keys(s.grade_counts).sort((a, b) => (isNaN(b) ? -1 : Number(b)) - (isNaN(a) ? -1 : Number(a))).map(g => `<td class="c">${s.grade_counts[g]}</td>`).join('')}<td class="c"><b>${s.students}</b></td></tr></tbody></table></div>
+        <div class="sign print-only"><div>ลงชื่อ ........................................ ครูผู้สอน<br>(${esc(c.teacher_name)})</div><div>ลงชื่อ ........................................ หัวหน้ากลุ่มสาระฯ</div><div>ลงชื่อ ........................................ ผู้อำนวยการ</div></div>
+      </div>`;
+    const fin = $('[data-act=finalize]', el);
+    if (fin) fin.onclick = async () => {
+      if (!await confirmBox('ยืนยันผลการเรียน', 'บันทึกผลการเรียน (' + ctxRoomLabel() + ') ลงตาราง final_grades ทำซ้ำได้ ผลใหม่จะทับผลเดิม', 'ยืนยันผล')) return;
+      try { const r = await call('reports.finalize', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id || '' }); toast('ยืนยันผลแล้ว ' + r.count + ' คน'); go('summary', {}); }
+      catch (e) { showError(e); }
+    };
+    const unfin = $('[data-act=unfinalize]', el);
+    if (unfin) unfin.onclick = async () => {
+      if (!await confirmBox('ยกเลิกการยืนยันผล', 'ลบผลที่ยืนยันไว้ (' + ctxRoomLabel() + ') เพื่อให้แก้คะแนน งาน และเวลาเรียนได้ — แก้เสร็จแล้วกดยืนยันผลใหม่อีกครั้ง', 'ยกเลิกการยืนยัน')) return;
+      try { const r = await call('reports.unfinalize', { course_id: App.ctx.course_id, classroom_id: App.ctx.classroom_id || '' }); toast('ยกเลิกการยืนยันแล้ว ' + r.count + ' คน'); go('summary', {}); }
+      catch (e) { showError(e); }
+    };
+  }
+};
+</script>
+
+  <script>
+'use strict';
+/* ==========================================================================
+ * JsPeople — รายชื่อนักเรียน, ค้นหา/โปรไฟล์, หน้านักเรียน, ตั้งค่าระบบ, บัญชีของฉัน
+ * ========================================================================== */
+const PREFIXES = ['เด็กชาย', 'เด็กหญิง', 'นางสาว', 'นาย', 'นาง', 'ด.ช.', 'ด.ญ.', 'น.ส.'];
+const ENROLL_STATUS = { ACTIVE: 'กำลังเรียน', MOVED_OUT: 'ย้ายออก', GRADUATED: 'จบการศึกษา' };
+
+/* ---------------- รายชื่อนักเรียน ---------------- */
+App.pages.students = {
+  title: 'รายชื่อนักเรียน',
+  async render(el, p) {
+    const roomId = p.classroom_id !== undefined ? p.classroom_id : Store.get('students_room', '');
+    const d = await call('students.list', { classroom_id: roomId || '' });
+    const isAdmin = App.boot.me.role === 'ADMIN';
+    const active = d.students.filter(s => s.enrollment_status === 'ACTIVE').length;
+    el.innerHTML = `
+      <div class="bar">
+        <label class="f"><span>ห้อง</span><select data-room><option value="">ทั้งหมด</option>${d.rooms.map(r =>
+          `<option value="${r.classroom_id}" ${Number(roomId) === r.classroom_id ? 'selected' : ''}>${esc(r.room_name)} (${r.count} คน)</option>`).join('')}</select></label>
+        <span class="note">กำลังเรียน ${active} คน</span><span class="grow"></span>
+        ${d.classroom && isAdmin ? '<button class="btn" data-act="accounts">สร้างบัญชีนักเรียน</button>' : ''}
+        ${d.can_edit ? '<button class="btn" data-act="import">วางรายชื่อจาก Excel</button><button class="btn primary" data-act="add">+ เพิ่มนักเรียน</button>' : (d.classroom ? '' : '<span class="note">เลือกห้องเพื่อเพิ่ม/นำเข้ารายชื่อ</span>')}
+      </div>
+      ${d.students.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th class="roll">เลขที่</th><th>เลขประจำตัว</th><th>คำนำหน้า</th><th>ชื่อ</th><th>สกุล</th><th>ห้อง</th><th>ชื่อเล่น</th><th>บัญชีเข้าระบบ</th><th>สถานะ</th><th></th></tr></thead><tbody>
+        ${d.students.map(s => `<tr class="${s.enrollment_status === 'ACTIVE' ? '' : 'muted'}">
+          <td class="roll">${s.roll_no || ''}</td><td>${esc(s.student_code)}</td><td>${esc(s.prefix || '')}</td>
+          <td><a href="#" data-student="${s.student_id}">${esc(s.first_name)}</a></td><td>${esc(s.last_name)}</td><td>${esc(s.room_name)}</td>
+          <td>${esc(s.nickname || '')}</td><td class="muted">${esc(s.username || '-')}</td>
+          <td>${s.enrollment_status === 'ACTIVE' ? '<span class="tag ok">กำลังเรียน</span>' : `<span class="tag">${esc(ENROLL_STATUS[s.enrollment_status])}</span>`}</td>
+          <td style="text-align:right">${d.can_edit ? `<button class="btn small ghost" data-edit="${s.student_id}">แก้ไข</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="empty">ยังไม่มีนักเรียน${d.can_edit ? ' — กด "วางรายชื่อจาก Excel" เพื่อนำเข้าทั้งห้อง' : ''}</div>`}`;
+    $('[data-room]', el).onchange = e => { Store.set('students_room', e.target.value); go('students', { classroom_id: e.target.value }); };
+    el.onclick = e => {
+      const a = e.target.closest('a[data-student]');
+      if (a) { e.preventDefault(); go('profile', { student_id: Number(a.dataset.student) }); return; }
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.act === 'add') this.form(d, {});
+      if (b.dataset.act === 'import') this.importer(d);
+      if (b.dataset.act === 'accounts') this.accounts(d);
+      if (b.dataset.edit) this.form(d, d.students.find(s => s.student_id === Number(b.dataset.edit)));
+    };
+  },
+  form(d, s) {
+    const room = d.classroom || { classroom_id: s.classroom_id, room_name: s.room_name };
+    const nextRoll = Math.max(0, ...d.students.map(x => x.roll_no || 0)) + 1;
+    const m = modal({
+      title: s.student_id ? 'แก้ไขข้อมูลนักเรียน — ห้อง ' + room.room_name : 'เพิ่มนักเรียน — ห้อง ' + room.room_name,
+      body: `<form class="body" style="padding:0">
+        <div class="grid2">
+          <label class="f"><span>เลขประจำตัวนักเรียน *</span><input type="text" name="student_code" value="${esc(s.student_code || '')}" maxlength="20" required></label>
+          <label class="f"><span>เลขที่</span><input type="number" name="roll_no" min="1" value="${esc(s.roll_no || (s.student_id ? '' : nextRoll))}"></label>
+          <label class="f"><span>คำนำหน้า</span><input type="text" name="prefix" list="prefixes" value="${esc(s.prefix || '')}" maxlength="20"></label>
+          <label class="f"><span>ชื่อเล่น</span><input type="text" name="nickname" value="${esc(s.nickname || '')}" maxlength="50"></label>
+          <label class="f"><span>ชื่อ *</span><input type="text" name="first_name" value="${esc(s.first_name || '')}" maxlength="100" required></label>
+          <label class="f"><span>นามสกุล *</span><input type="text" name="last_name" value="${esc(s.last_name || '')}" maxlength="100" required></label>
+        </div>
+        <label class="f"><span>อีเมล Google ของนักเรียน (ถ้ามี — ใช้เข้าระบบด้วย Google)</span><input type="email" name="email" value="${esc(s.email || '')}" maxlength="255"></label>
+        ${s.student_id ? `<label class="f"><span>สถานะในห้องนี้</span><select name="enrollment_status">${Object.keys(ENROLL_STATUS).map(k =>
+          `<option value="${k}" ${s.enrollment_status === k ? 'selected' : ''}>${ENROLL_STATUS[k]}</option>`).join('')}</select></label>` : ''}
+        <datalist id="prefixes">${PREFIXES.map(x => `<option value="${x}">`).join('')}</datalist>
+      </form>`,
+      actions: [{ label: 'ยกเลิก' }, { label: 'บันทึก', kind: 'primary', onClick: async (close, root) => {
+        const f = formData($('form', root));
+        f.classroom_id = room.classroom_id;
+        if (s.student_id) f.student_id = s.student_id;
+        await call('students.save', { student: f });
+        toast('บันทึกข้อมูลนักเรียนแล้ว');
+        go('students', App.params);
+      } }]
+    });
+    $('form', m.root).onsubmit = e => e.preventDefault();
+  },
+
+  /** แยกคำนำหน้าออกจากชื่อ เช่น "เด็กชายธนากร" */
+  splitPrefix(name) {
+    const p = PREFIXES.find(x => name.startsWith(x));
+    return p ? [p, name.slice(p.length).trim()] : ['', name];
+  },
+
+  /**
+   * อ่านข้อความที่วางจาก Excel รองรับหลายแบบ:
+   *   เลขที่ | เลขประจำตัว | คำนำหน้า | ชื่อ | นามสกุล | ชื่อเล่น | อีเมล
+   *   เลขที่ | เลขประจำตัว | ชื่อ-สกุล (เช่น "เด็กชายธนากร ใจดี") | ชื่อเล่น
+   */
+  parse(text) {
+    const rows = [];
+    text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).forEach(line => {
+      let c = line.split(line.includes('\t') ? '\t' : ',').map(x => x.trim());
+      if (!/\d/.test(c[1] || '') && /เลข|ที่|รหัส|no/i.test(c[0] || '')) return; // แถวหัวตาราง
+      const email = c.find(x => x.includes('@')) || '';
+      c = c.filter(x => x !== email);
+      const roll = c[0], code = c[1];
+      const parts = c.slice(2).filter(Boolean);
+      let prefix = '', first = '', last = '', nick = '';
+      if (parts.length && PREFIXES.includes(parts[0])) prefix = parts.shift();
+      if (parts.length) {
+        first = parts.shift();
+        if (!prefix) [prefix, first] = this.splitPrefix(first);
+        const sp = first.split(/\s+/);
+        if (sp.length > 1) { first = sp.shift(); last = sp.join(' '); }
+        else last = parts.shift() || '';
+        nick = parts.shift() || '';
+      }
+      rows.push({ roll_no: roll, student_code: code, prefix, first_name: first, last_name: last, nickname: nick, email });
+    });
+    return rows;
+  },
+
+  importer(d) {
+    const m = modal({
+      title: 'วางรายชื่อจาก Excel — ' + d.classroom.room_name, wide: true,
+      body: `<p class="note" style="margin:0">คัดลอกจาก Excel/Google Sheets แล้ววางด้านล่าง เรียงคอลัมน์:
+          <b>เลขที่ | เลขประจำตัว | คำนำหน้า | ชื่อ | นามสกุล | ชื่อเล่น | อีเมล</b> (สองคอลัมน์ท้ายไม่บังคับ)<br>
+          ถ้าเลขประจำตัวมีอยู่แล้ว ระบบจะอัปเดตข้อมูลและย้ายเข้าห้องนี้</p>
+        <textarea data-paste placeholder="1&#9;10001&#9;เด็กชาย&#9;ธนากร&#9;ใจดี&#9;บอส"></textarea>
+        <div data-preview class="note">ยังไม่มีข้อมูล</div>`,
+      actions: [{ label: 'ยกเลิก' }, { label: 'นำเข้า', kind: 'primary', onClick: async (close, root) => {
+        const rows = this.parse($('[data-paste]', root).value);
+        if (!rows.length) throw new Error('ยังไม่มีข้อมูลให้นำเข้า');
+        const r = await call('students.import', { classroom_id: d.classroom.classroom_id, rows });
+        toast(`นำเข้าแล้ว: ใหม่ ${r.inserted} คน, อัปเดต ${r.updated} คน`);
+        go('students', App.params);
+      } }]
+    });
+    $('[data-paste]', m.root).addEventListener('input', e => {
+      const rows = this.parse(e.target.value);
+      $('[data-preview]', m.root).innerHTML = rows.length ? `<div class="tbl-wrap" style="max-height:260px"><table class="t"><thead><tr><th>เลขที่</th><th>เลขประจำตัว</th><th>คำนำหน้า</th><th>ชื่อ</th><th>นามสกุล</th><th>ชื่อเล่น</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${esc(r.roll_no)}</td><td>${r.student_code ? esc(r.student_code) : '<span class="redpen">ไม่มี</span>'}</td><td>${esc(r.prefix)}</td><td>${r.first_name ? esc(r.first_name) : '<span class="redpen">ไม่มี</span>'}</td><td>${r.last_name ? esc(r.last_name) : '<span class="redpen">ไม่มี</span>'}</td><td>${esc(r.nickname)}</td></tr>`).join('')}
+        </tbody></table></div><p class="note">พบ ${rows.length} คน</p>` : 'ยังไม่มีข้อมูล';
+    });
+  },
+
+  async accounts(d) {
+    if (!await confirmBox('สร้างบัญชีนักเรียน', `สร้างบัญชีให้นักเรียนห้อง ${d.classroom.room_name} ที่ยังไม่มีบัญชี (ชื่อผู้ใช้ = เลขประจำตัว รหัสผ่านสุ่ม 6 หลัก)`, 'สร้างบัญชี')) return;
+    try {
+      const r = await call('admin.studentAccounts', { classroom_id: d.classroom.classroom_id });
+      modal({
+        title: 'บัญชีที่สร้างใหม่ ' + r.created.length + ' บัญชี', wide: true,
+        body: r.created.length ? `<p class="note" style="margin:0"><span class="redpen">รหัสผ่านแสดงครั้งเดียว</span> — พิมพ์หรือคัดลอกเก็บไว้แจกนักเรียนตอนนี้</p>
+          <div class="tbl-wrap" style="max-height:50vh"><table class="t"><thead><tr><th>เลขที่</th><th>ชื่อ-สกุล</th><th>ชื่อผู้ใช้</th><th>รหัสผ่าน</th></tr></thead><tbody>
+          ${r.created.map(x => `<tr><td>${x.roll_no || ''}</td><td>${esc(x.full_name)}</td><td class="num">${esc(x.username)}</td><td class="num"><b>${esc(x.password)}</b></td></tr>`).join('')}</tbody></table></div>`
+          : '<p>นักเรียนทุกคนในห้องนี้มีบัญชีอยู่แล้ว</p>',
+        actions: [{ label: 'พิมพ์', onClick: () => { window.print(); return false; } }, { label: 'ปิด', kind: 'primary', onClick: () => go('students', App.params) }]
+      });
+    } catch (e) { showError(e); }
+  }
+};
+
+/* ---------------- ค้นหา / โปรไฟล์รายบุคคล ---------------- */
+function renderProfile(d, opts) {
+  opts = opts || {};
+  const termId = currentTermId();
+  const showAll = opts.showAll;
+  const courses = d.courses.filter(c => showAll || c.course.term_id === termId);
+  const older = d.courses.length - d.courses.filter(c => c.course.term_id === termId).length;
+  const rooms = d.enrollments.map(e => `${esc(e.room_name)} (${e.academic_year}) เลขที่ ${e.roll_no || '-'}`).join(', ');
+  const statusTag = a => {
+    if (a.missing) return `<span class="tag red">${a.due_date && a.due_date < App.boot.today ? 'ยังไม่ส่ง (เลยกำหนด)' : 'ยังไม่ส่ง'}</span>`;
+    if (!a.status_code) return '<span class="muted">-</span>';
+    const cls = { SUBMITTED: 'ok', LATE: 'late', MISSING: 'red' }[a.status_code] || '';
+    return `<span class="tag ${cls}">${esc(a.status_name)}</span>`;
+  };
+  return `
+    <div class="profile-head"><h2>${esc(d.full_name)}${d.student.nickname ? ` <span class="muted" style="font-size:18px">(${esc(d.student.nickname)})</span>` : ''}</h2>
+      <span class="muted">เลขประจำตัว ${esc(d.student.student_code)} • ${rooms || 'ยังไม่ได้อยู่ในห้องใด'}</span></div>
+    ${courses.length ? courses.map(c => {
+      const r = c.result || {};
+      const att = r.attendance || {};
+      return `<section class="course-block">
+        <header>
+          <div><h3>${esc(c.course.label)}</h3>
+            <div class="facts"><span>ครู ${esc(c.course.teacher_name)}</span><span>ภาคเรียน ${esc(c.course.term_label)}</span>
+              <span>คะแนน <b class="num">${fmt(r.total)}</b>/100 (${pct(r.percent)})</span>
+              <span class="${r.special === 'มส' ? 'redpen' : ''}">เวลาเรียน ${pct(att.percent)} (${att.present || 0}/${att.total || 0} คาบ)</span>
+              <span>ส่งงานแล้ว ${r.submitted || 0}/${r.work_total || 0} ชิ้น</span>
+              ${r.missing ? `<span class="redpen">ค้าง ${r.missing} ชิ้น</span>` : ''}</div></div>
+          <div class="grade ${r.special || r.result === '0' ? 'redpen' : ''}" title="ผลการเรียนตอนนี้">${esc(r.result || '-')}
+            ${c.final ? `<div class="note" style="font-size:12px;font-weight:400">ยืนยันแล้ว: ${esc(c.final.special_status || c.final.grade)}</div>` : ''}</div>
+        </header>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>งาน</th><th>หมวด</th><th>กำหนดส่ง</th><th>สถานะ</th><th class="n">คะแนน</th><th>หมายเหตุครู</th></tr></thead><tbody>
+          ${c.assignments.map(a => `<tr><td>${esc(a.title)}</td><td class="muted">${esc(a.category_name)}</td><td>${thDate(a.due_date)}</td>
+            <td>${statusTag(a)}</td><td class="n">${a.score === null ? '-' : fmt(a.score)}<span class="muted">/${fmt(a.max_score)}</span></td>
+            <td class="muted">${esc(a.teacher_comment || '')}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีงาน</td></tr>'}
+        </tbody></table></div></section>`;
+    }).join('') : '<div class="empty">ไม่มีรายวิชาในภาคเรียนนี้</div>'}
+    ${older && !showAll ? `<button class="btn" data-showall>แสดงภาคเรียนก่อนหน้า (${older} รายวิชา)</button>` : ''}`;
+}
+
+App.pages.profile = {
+  title: 'ข้อมูลนักเรียนรายบุคคล (ทุกวิชา)',
+  hidden: true,
+  navAs: 'students',
+  async render(el, p) {
+    if (!p.student_id) { go('students', {}); return; }
+    const d = await call('students.profile', { student_id: p.student_id });
+    el.innerHTML = `<div class="bar no-print"><button class="btn" data-back>← กลับ</button><span class="grow"></span><button class="btn" onclick="window.print()">พิมพ์</button></div>` + renderProfile(d, { showAll: p.all });
+    $('[data-back]', el).onclick = () => history.length && App.prevPage ? go(App.prevPage.page, App.prevPage.params) : go('students', {});
+    const sa = $('[data-showall]', el);
+    if (sa) sa.onclick = () => go('profile', { student_id: p.student_id, all: true });
+  }
+};
+
+/* ---------------- หน้านักเรียน ---------------- */
+App.pages.portal = {
+  title: 'ผลการเรียนของฉัน',
+  async render(el, p) {
+    const d = await call('students.profile', {});
+    el.innerHTML = renderProfile(d, { showAll: p.all });
+    const sa = $('[data-showall]', el);
+    if (sa) sa.onclick = () => go('portal', { all: true });
+  }
+};
+
+/* ---------------- บัญชีของฉัน ---------------- */
+App.pages.account = {
+  title: 'บัญชีของฉัน',
+  async render(el) {
+    const me = App.boot.me;
+    el.innerHTML = `<div class="cols">
+      <div class="stats"><h3>ข้อมูลบัญชี</h3>
+        <div><span class="k">ชื่อ</span><span>${esc(me.display_name)}</span></div>
+        <div><span class="k">ชื่อผู้ใช้</span><span>${esc(me.username)}</span></div>
+        <div><span class="k">บทบาท</span><span>${esc({ ADMIN: 'ผู้ดูแลระบบ', TEACHER: 'ครู', STUDENT: 'นักเรียน' }[me.role])}</span></div>
+        <div><span class="k">อีเมล Google</span><span>${esc(me.email || '-')}</span></div>
+        <div><span class="k">เข้าระบบด้วย</span><span>${me.via === 'google' ? 'บัญชี Google' : 'ชื่อผู้ใช้/รหัสผ่าน'}</span></div>
+      </div>
+      ${me.user_id ? `<form class="stats" data-pw><h3>เปลี่ยนรหัสผ่าน</h3>
+        <div style="display:grid;gap:12px;padding:14px 16px">
+          <label class="f"><span>รหัสผ่านเดิม</span><input type="password" name="old_password" autocomplete="current-password"></label>
+          <label class="f"><span>รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)</span><input type="password" name="new_password" autocomplete="new-password" minlength="6"></label>
+          <label class="f"><span>ยืนยันรหัสผ่านใหม่</span><input type="password" name="confirm" autocomplete="new-password"></label>
+          <button class="btn primary" type="submit">เปลี่ยนรหัสผ่าน</button></div></form>` : ''}
+    </div>`;
+    const f = $('[data-pw]', el);
+    if (f) f.onsubmit = async e => {
+      e.preventDefault();
+      const v = formData(f);
+      if (v.new_password !== v.confirm) { toast('รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน', true); return; }
+      try { await call('session.changePassword', v); toast('เปลี่ยนรหัสผ่านแล้ว'); f.reset(); } catch (err) { showError(err); }
+    };
+  }
+};
+
+/* ---------------- ⚙️ ตั้งค่าระบบ ---------------- */
+function dbStatusTag(status) {
+  const m = { READY: ['ok', 'พร้อมใช้งาน'], OUTDATED: ['late', 'ต้องอัปเดตโครงสร้าง'], EMPTY: ['', 'ชีตว่าง ยังไม่มีตาราง'], NEWER: ['red', 'เวอร์ชันใหม่กว่าโปรแกรม'] };
+  const x = m[status] || ['', status];
+  return `<span class="tag ${x[0]}">${esc(x[1])}</span>`;
+}
+/** หลังเปลี่ยนฐานข้อมูล: แจ้งผล แล้วเริ่มระบบใหม่ (ส่วนใหญ่ต้องเข้าสู่ระบบใหม่) */
+function dbSwitched(r) {
+  let started = false;
+  const restart = () => { if (started) return; started = true; Store.del('ctx'); Store.set('next', { page: 'settings', p: { section: 'database' } }); if (r.relogin) App.logoutLocal(); App.start(); };
+  const m = modal({
+    title: 'เปลี่ยนฐานข้อมูลแล้ว',
+    body: `<p style="margin:0 0 8px">ตอนนี้ระบบใช้ <b>${esc(r.current.name)}</b> เป็นฐานข้อมูล</p>
+      ${r.admin_created ? `<p style="margin:0 0 8px">สร้างผู้ดูแลเริ่มต้นให้แล้ว: <b class="mono">${esc(r.admin_created.username)}</b> / <b class="mono">${esc(r.admin_created.password)}</b> — เข้าระบบแล้วเปลี่ยนรหัสผ่านที่ "บัญชีของฉัน"</p>` : ''}
+      ${r.relogin ? '<p class="note" style="margin:0">กรุณาเข้าสู่ระบบใหม่ด้วยบัญชีของฐานข้อมูลนี้</p>' : ''}`,
+    actions: [{ label: r.relogin ? 'ไปหน้าเข้าสู่ระบบ' : 'ตกลง', kind: 'primary', onClick: restart }]
+  });
+  // ปิดด้วย Esc/คลิกนอกกล่อง ก็ต้องเริ่มใหม่เหมือนกัน
+  const obs = new MutationObserver(() => { if (!m.root.isConnected) { obs.disconnect(); restart(); } });
+  obs.observe($('#modal'), { childList: true });
+}
+function copyText(text) {
+  const done = () => toast('คัดลอกแล้ว');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => fallback());
+  } else fallback();
+  function fallback() {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Ctrl+C', true); }
+    ta.remove();
+  }
+}
+App.pages.settings = {
+  title: 'ตั้งค่าระบบ',
+  meta: null,
+  async render(el, p) {
+    const isAdmin = App.boot.me.role === 'ADMIN';
+    const section = p.section || 'general';
+    const secs = [['general', 'ตั้งค่าหลัก'], ['course', 'รายวิชาและสัดส่วนคะแนน']].concat(isAdmin ? [['rooms', 'ห้องเรียน'], ['data', 'ข้อมูลทั้งหมด'], ['database', 'ฐานข้อมูล'], ['audit', 'บันทึกการใช้งาน']] : []);
+    const tabs = `<div class="tabs" role="tablist">${secs.map(x => `<button role="tab" data-sec="${x[0]}" aria-selected="${x[0] === section}">${esc(x[1])}</button>`).join('')}</div>`;
+    const bindTabs = () => $$('.tabs [data-sec]', el).forEach(b => b.onclick = () => go('settings', { section: b.dataset.sec }));
+    if (section === 'general') await this.general(el, tabs);
+    else if (section === 'course') await this.course(el, tabs, p);
+    else if (section === 'rooms') await this.rooms(el, tabs);
+    else if (section === 'audit') await this.audit(el, tabs);
+    else if (section === 'database') await this.database(el, tabs);
+    else await this.data(el, tabs, p);
+    bindTabs();
+  },
+
+  async general(el, tabs) {
+    const g = await call('settings.general');
+    const r = g.rules, dis = g.can_edit ? '' : 'disabled';
+    el.innerHTML = `${tabs}
+      <form class="settings-form" data-general>
+        <div class="stats"><h3>ข้อมูลทั่วไป</h3><div class="form-grid">
+          <label class="f"><span>ชื่อโรงเรียน</span><input type="text" name="school_name" value="${esc(g.school_name)}" ${dis}></label>
+          <label class="f"><span>ปีการศึกษา (พ.ศ.)</span><input type="number" name="academic_year" value="${esc(g.academic_year || '')}" ${dis}></label>
+          <label class="f"><span>ภาคเรียน</span><select name="semester" ${dis}>${[1, 2, 3].map(n => `<option ${n === g.semester ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        </div></div>
+        <div class="stats"><h3>เกณฑ์การคิดผล</h3><div class="form-grid">
+          <label class="f"><span>เวลาเรียนขั้นต่ำ (%) ต่ำกว่านี้ = มส</span><input type="number" name="min_attendance_percent" min="0" max="100" value="${r.min_attendance_percent}" ${dis}></label>
+          <label class="f"><span>นับงานค้าง</span><select name="missing_rule" ${dis}>
+            <option value="ALL" ${r.missing_rule === 'ALL' ? 'selected' : ''}>ทุกงานที่ยังไม่ส่ง (แบบชีตเดิม)</option>
+            <option value="OVERDUE" ${r.missing_rule === 'OVERDUE' ? 'selected' : ''}>เฉพาะงานที่เลยกำหนดส่ง</option></select></label>
+          <label class="f"><span>ติด ร เมื่อ</span><select name="incomplete_rule" ${dis}>
+            <option value="ALL" ${r.incomplete_rule === 'ALL' ? 'selected' : ''}>มีงานไม่ส่ง หรือคะแนนสอบยังไม่ครบ (แบบชีตเดิม)</option>
+            <option value="OVERDUE" ${r.incomplete_rule === 'OVERDUE' ? 'selected' : ''}>มีงานเลยกำหนดที่ยังไม่ส่ง</option>
+            <option value="OFF" ${r.incomplete_rule === 'OFF' ? 'selected' : ''}>ไม่ใช้ ร</option></select></label>
+          <label class="f"><span>สถานะการส่ง "ปกติ" เมื่อส่งตั้งแต่ (%)</span><input type="number" name="submit_ok_percent" min="0" max="100" value="${r.submit_ok_percent}" ${dis}></label>
+          <label class="f"><span>"เสี่ยง" เมื่อส่งต่ำกว่า (%) (ระหว่างนั้น = เฝ้าระวัง)</span><input type="number" name="submit_risk_percent" min="0" max="100" value="${r.submit_risk_percent}" ${dis}></label>
+          <label class="check"><input type="checkbox" name="round_total" ${r.round_total ? 'checked' : ''} ${dis}> ปัดคะแนนรวมเป็นจำนวนเต็มก่อนตัดเกรด</label>
+        </div></div>
+        ${g.can_edit ? '<div class="bar"><span class="grow"></span><button class="btn primary" type="submit">บันทึกการตั้งค่า</button></div>' : '<p class="note">เฉพาะผู้ดูแลระบบที่แก้ไขส่วนนี้ได้</p>'}
+      </form>
+      <p class="note">สัดส่วนคะแนน (ก่อนกลางภาค / หลังกลางภาค / สอบกลางภาค / สอบปลายภาค) ตั้งแยกแต่ละรายวิชาที่แท็บ "รายวิชาและสัดส่วนคะแนน"</p>`;
+    const f = $('[data-general]', el);
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const v = formData(f);
+      try {
+        await call('settings.saveGeneral', { school_name: v.school_name, academic_year: v.academic_year, semester: v.semester,
+          rules: { min_attendance_percent: v.min_attendance_percent, missing_rule: v.missing_rule, incomplete_rule: v.incomplete_rule,
+            submit_ok_percent: v.submit_ok_percent, submit_risk_percent: v.submit_risk_percent, round_total: v.round_total } });
+        await App.reloadBoot(); App.renderShell(); toast('บันทึกการตั้งค่าแล้ว'); go('settings', { section: 'general' });
+      } catch (err) { showError(err); }
+    };
+  },
+
+  async course(el, tabs, p) {
+    const o = await call('settings.courseOptions');
+    const isAdmin = o.can_create;
+    const sel = p.course_id === 'new' ? null : (o.courses.find(c => c.course_id === Number(p.course_id)) || o.courses.find(c => c.course_id === App.ctx.course_id) || o.courses[0]);
+    const isNew = p.course_id === 'new' || (!sel && isAdmin);
+    const c = sel || { rooms: [], categories: [], term_id: o.current_term_id, is_active: true };
+    const roomIds = c.rooms.map(r => r.classroom_id);
+    const opt = (list, v) => list.map(x => `<option value="${x.value}" ${String(x.value) === String(v) ? 'selected' : ''}>${esc(x.label)}</option>`).join('');
+    const total = c.categories.reduce((t, k) => t + k.weight, 0);
+    el.innerHTML = `${tabs}
+      <div class="bar">
+        ${o.courses.length ? `<label class="f"><span>รายวิชา</span><select data-course>${o.courses.map(x => `<option value="${x.course_id}" ${sel && x.course_id === sel.course_id ? 'selected' : ''}>${esc(x.label)} • ${esc(x.teacher_name)} (${esc(x.term_label)})</option>`).join('')}
+          ${isNew ? '<option value="new" selected>— รายวิชาใหม่ —</option>' : ''}</select></label>` : ''}
+        <span class="grow"></span>${isAdmin && !isNew ? '<button class="btn" data-new>+ สร้างรายวิชาใหม่</button>' : ''}
+      </div>
+      ${!o.courses.length && !isAdmin ? '<div class="empty">คุณยังไม่มีรายวิชาที่แก้ไขได้</div>' : `
+      <form class="settings-form" data-course-form>
+        <div class="stats"><h3>${isNew ? 'สร้างรายวิชาใหม่' : 'ข้อมูลรายวิชา'}</h3><div class="form-grid">
+          <label class="f"><span>ภาคเรียน</span><select name="term_id" ${isAdmin ? '' : 'disabled'}>${opt(o.terms, c.term_id)}</select></label>
+          <label class="f"><span>วิชา</span><select name="subject_id" ${isAdmin ? '' : 'disabled'}><option value="">— เลือกวิชา —</option>${opt(o.subjects, c.subject_id)}</select></label>
+          <label class="f"><span>ครูผู้สอน</span><select name="teacher_id" ${isAdmin ? '' : 'disabled'}><option value="">— เลือกครู —</option>${opt(o.teachers, c.teacher_id)}</select></label>
+          <label class="f"><span>ระดับชั้น</span><input type="text" name="grade_level" value="${esc(c.grade_level || '')}" placeholder="เช่น ม.3"></label>
+          <label class="check"><input type="checkbox" name="is_active" ${c.is_active !== false ? 'checked' : ''}> เปิดใช้งาน</label>
+        </div>
+        ${isAdmin ? '<p class="note" style="padding:0 16px 12px;margin:0">ยังไม่มีวิชาหรือครูในรายการ? เพิ่มได้ที่แท็บ "ข้อมูลทั้งหมด" › วิชา / ผู้ใช้งาน</p>' : ''}</div>
+        <div class="stats"><h3>ห้องที่เรียนวิชานี้ <small class="muted">(งานและคะแนนใช้ร่วมกันทุกห้อง)</small></h3>
+          <div class="room-checks">${o.classrooms.map(r => `<label><input type="checkbox" name="classroom_ids" data-multi="1" value="${r.value}" ${roomIds.indexOf(r.value) >= 0 ? 'checked' : ''}> ${esc(r.label)}</label>`).join('') || '<span class="note">ยังไม่มีห้องเรียนในปีการศึกษานี้ — สร้างที่แท็บ "ห้องเรียน"</span>'}</div></div>
+        ${isNew ? '<p class="note">รายวิชาใหม่จะได้สัดส่วนคะแนนเริ่มต้น ก่อนกลางภาค 35 / หลังกลางภาค 35 / สอบกลางภาค 15 / สอบปลายภาค 15</p>' : `
+        <div class="stats"><h3>สัดส่วนคะแนน <small class="muted" data-total>รวม ${fmt(total)}</small></h3><div class="form-grid">
+          ${c.categories.map(k => `<label class="f"><span>${esc(k.name)}${k.kind === 'EXAM' ? ' (สอบ)' : ''}</span><input type="number" step="0.5" min="0" data-cat="${k.category_id}" data-name="${esc(k.name)}" value="${k.weight}"></label>`).join('')}
+        </div><p class="note" style="padding:0 16px 12px;margin:0">เพิ่ม/ลบหมวด หรือเปลี่ยนชนิดหมวด ได้ที่หน้า รายละเอียดงาน › สัดส่วนคะแนน</p></div>`}
+        <div class="bar"><span class="grow"></span><button class="btn primary" type="submit">${isNew ? 'สร้างรายวิชา' : 'บันทึก'}</button></div>
+      </form>`}`;
+    const cs = $('[data-course]', el);
+    if (cs) cs.onchange = () => go('settings', { section: 'course', course_id: cs.value });
+    const nb = $('[data-new]', el);
+    if (nb) nb.onclick = () => go('settings', { section: 'course', course_id: 'new' });
+    const form = $('[data-course-form]', el);
+    if (!form) return;
+    form.addEventListener('input', () => {
+      const t = $$('[data-cat]', form).reduce((s, i) => s + (Number(i.value) || 0), 0);
+      const tt = $('[data-total]', form);
+      if (tt) tt.innerHTML = 'รวม ' + fmt(t) + (t !== 100 ? ' — <span class="redpen">ควรรวมได้ 100</span>' : '');
+    });
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const v = formData(form);
+      const course = { term_id: v.term_id, subject_id: v.subject_id, teacher_id: v.teacher_id, grade_level: v.grade_level, is_active: v.is_active,
+        classroom_ids: v.classroom_ids || [], categories: $$('[data-cat]', form).map(i => ({ category_id: Number(i.dataset.cat), name: i.dataset.name, weight: i.value })) };
+      if (!isNew) course.course_id = sel.course_id;
+      try {
+        const r = await call('settings.saveCourse', { course });
+        await App.reloadBoot(); App.renderShell();
+        App.ctx.course_id = r.course_id; Store.set('ctx', App.ctx);
+        toast(isNew ? 'สร้างรายวิชาแล้ว' : 'บันทึกรายวิชาแล้ว');
+        go('settings', { section: 'course', course_id: r.course_id });
+      } catch (err) { showError(err); }
+    };
+  },
+
+  async rooms(el, tabs) {
+    const d = await call('admin.list', { table: 'classrooms' });
+    const term = App.boot.current_term || {};
+    const rows = d.rows.slice().sort((a, b) => (b.academic_year - a.academic_year) || String(a.room_name).localeCompare(String(b.room_name), 'th', { numeric: true }));
+    el.innerHTML = `${tabs}
+      <form class="stats" data-bulk style="margin-bottom:24px"><h3>สร้างหลายห้องพร้อมกัน (เหมือนรายการห้องในชีต SETTINGS เดิม)</h3>
+        <div class="form-grid">
+          <label class="f"><span>ปีการศึกษา</span><input type="number" name="academic_year" value="${term.academic_year || ''}"></label>
+          <label class="f"><span>ระดับชั้น</span><input type="text" name="grade_level" value="ม.3"></label>
+          <label class="f"><span>ชื่อห้องขึ้นต้นด้วย</span><input type="text" name="prefix" value="3/"></label>
+          <label class="f"><span>ตั้งแต่ห้อง</span><input type="number" name="from" value="1" min="1"></label>
+          <label class="f"><span>ถึงห้อง</span><input type="number" name="to" value="10" min="1"></label>
+          <div class="f" style="justify-content:end"><button class="btn primary" type="submit">สร้างห้อง</button></div>
+        </div></form>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>ปีการศึกษา</th><th>ระดับชั้น</th><th>ชื่อห้อง</th><th>ครูประจำชั้น</th><th>เปิดใช้งาน</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${r.academic_year}</td><td>${esc(r.grade_level)}</td><td><b>${esc(r.room_name)}</b></td>
+          <td>${esc(((d.options.homeroom_teacher_id || []).find(x => x.value === r.homeroom_teacher_id) || {}).label || '-')}</td><td>${r.is_active ? '✓' : '✗'}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="note">แก้ไขห้องหรือกำหนดครูประจำชั้น ได้ที่แท็บ "ข้อมูลทั้งหมด" › ห้องเรียน</p>`;
+    $('[data-bulk]', el).onsubmit = async e => {
+      e.preventDefault();
+      try {
+        const r = await call('settings.bulkRooms', formData(e.target));
+        await App.reloadBoot();
+        toast(r.created.length ? 'สร้างห้อง ' + r.created.join(', ') : 'มีห้องเหล่านี้อยู่แล้ว');
+        go('settings', { section: 'rooms' });
+      } catch (err) { showError(err); }
+    };
+  },
+
+  async data(el, tabs, p) {
+    if (!this.meta) this.meta = await call('admin.meta');
+    const table = p.table || 'subjects';
+    const sub = `<div class="tabs sub" role="tablist">${this.meta.map(t =>
+      `<button role="tab" data-table="${t.name}" aria-selected="${t.name === table}">${esc(t.label)}</button>`).join('')}</div>`;
+    const t = this.meta.find(x => x.name === table);
+    const d = await call('admin.list', { table });
+    const cols = t.columns.filter(c => !(c.pk && c.type !== 'string') && c.name !== 'created_at');
+    const show = cols.slice(0, 7);
+    const view = (c, v) => {
+      if (v === null || v === undefined || v === '') return '<span class="muted">-</span>';
+      if (c.type === 'bool') return v ? '✓' : '<span class="muted">✗</span>';
+      if (c.ref) { const o = (d.options[c.name] || []).find(x => String(x.value) === String(v)); return esc(o ? o.label : v); }
+      if (c.type === 'date') return thDate(v);
+      if (c.type === 'datetime') return thDateTime(v);
+      return esc(v);
+    };
+    el.innerHTML = `${tabs}${sub}
+      <div class="bar"><p class="note grow" style="margin:0">${esc(t.desc)} — ${d.rows.length} รายการ</p><button class="btn primary" data-add>+ เพิ่ม${esc(t.label)}</button></div>
+      ${d.rows.length ? `<div class="tbl-wrap"><table class="t"><thead><tr>${show.map(c => `<th class="${c.type === 'int' || c.type === 'decimal' ? 'n' : ''}">${esc(c.label)}</th>`).join('')}<th></th></tr></thead><tbody>
+        ${d.rows.map((r, i) => `<tr class="clickable" data-i="${i}">${show.map(c => `<td class="${c.type === 'int' || c.type === 'decimal' ? 'n' : ''}">${view(c, r[c.name])}</td>`).join('')}
+          <td style="text-align:right"><button class="btn small ghost">แก้ไข</button></td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="empty">ยังไม่มี${esc(t.label)} — กด "+ เพิ่ม${esc(t.label)}"</div>`}
+      ${table === 'courses' ? '<p class="note">แนะนำให้สร้าง/แก้รายวิชาที่แท็บ "รายวิชาและสัดส่วนคะแนน" (เลือกห้องและสัดส่วนคะแนนได้ในที่เดียว)</p>' : ''}
+      ${table === 'users' ? '<p class="note">ถ้าโรงเรียนใช้ Google Workspace ให้ใส่อีเมล Google ของครู แล้วครูเข้าเว็บได้ทันทีไม่ต้องใช้รหัสผ่าน • บัญชีนักเรียนสร้างทั้งห้องได้ที่หน้า รายชื่อนักเรียน</p>' : ''}`;
+    $$('.tabs.sub [data-table]', el).forEach(b => b.onclick = () => go('settings', { section: 'data', table: b.dataset.table }));
+    $('[data-add]', el).onclick = () => this.form(t, d, null);
+    $$('tr[data-i]', el).forEach(tr => tr.onclick = () => this.form(t, d, d.rows[Number(tr.dataset.i)]));
+  },
+
+  input(t, d, c, row) {
+    const v = row ? row[c.name] : (c.default !== undefined ? c.default : null);
+    const req = c.required ? ' *' : '';
+    const dis = c.readonly || (c.pk && row) ? 'disabled' : '';
+    if (c.type === 'bool') return `<label><input type="checkbox" name="${c.name}" ${v ? 'checked' : ''} ${dis}> ${esc(c.label)}</label>`;
+    let ctl;
+    if (c.ref) {
+      ctl = `<select name="${c.name}" ${dis}><option value="">${c.required ? '— เลือก —' : '(ไม่ระบุ)'}</option>${(d.options[c.name] || []).map(o =>
+        `<option value="${esc(o.value)}" ${String(o.value) === String(v) ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+    } else if (c.enum) {
+      // ฟอร์มเพิ่มใหม่ที่ไม่มีค่าเริ่มต้น (เช่น บทบาท) ต้องเลือกเอง — กันลืมแล้วได้ค่าแรกในรายการ
+      const blank = !c.required ? '<option value="">(ไม่ระบุ)</option>' : (v === null || v === undefined || v === '') ? '<option value="" selected>— เลือก —</option>' : '';
+      ctl = `<select name="${c.name}" ${dis}>${blank}${c.enum.map(x =>
+        `<option ${String(x) === String(v) ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+    } else {
+      const type = c.type === 'int' || c.type === 'bigint' || c.type === 'decimal' ? 'number' : c.type === 'date' ? 'date' : 'text';
+      ctl = `<input type="${type}" name="${c.name}" value="${esc(v === null ? '' : v)}" ${c.size ? `maxlength="${c.size}"` : ''} ${c.type === 'decimal' ? 'step="any"' : ''} ${dis}>`;
+    }
+    return `<label class="f"><span>${esc(c.label)}${req}</span>${ctl}</label>`;
+  },
+
+  form(t, d, row) {
+    const cols = t.columns.filter(c => !(c.pk && c.type !== 'string') && !(c.readonly && !row));
+    const m = modal({
+      title: (row ? 'แก้ไข' : 'เพิ่ม') + t.label, wide: cols.length > 6,
+      body: `<form class="body" style="padding:0"><div class="grid2">${cols.filter(c => c.type !== 'bool').map(c => this.input(t, d, c, row)).join('')}</div>
+        ${cols.filter(c => c.type === 'bool').map(c => this.input(t, d, c, row)).join('')}
+        ${t.name === 'users' ? `<label class="f"><span>${row && row.has_password ? 'ตั้งรหัสผ่านใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'รหัสผ่าน (เว้นว่างได้ถ้าเข้าด้วย Google)'}</span><input type="password" name="new_password" autocomplete="new-password"></label>` : ''}
+      </form>`,
+      actions: [
+        ...(row ? [{ label: 'ลบ', kind: 'danger', onClick: async () => {
+          if (!await confirmBox('ลบข้อมูล', 'ลบรายการนี้ออกจาก "' + t.label + '"?', 'ลบ', true)) return false;
+          await call('admin.remove', { table: t.name, id: row[t.pk] });
+          toast('ลบแล้ว'); await App.reloadBoot(); go('settings', { section: 'data', table: t.name });
+        } }] : []),
+        { label: 'ยกเลิก' },
+        { label: 'บันทึก', kind: 'primary', onClick: async (close, root) => {
+          const f = formData($('form', root));
+          if (row) f[t.pk] = row[t.pk];
+          await call('admin.save', { table: t.name, row: f });
+          toast('บันทึกแล้ว'); await App.reloadBoot(); go('settings', { section: 'data', table: t.name });
+        } }
+      ]
+    });
+    $('form', m.root).onsubmit = e => e.preventDefault();
+  },
+
+  /* ---------- ฐานข้อมูล: ใช้ชีตไหน / ขนาด / เครื่องมือ / เปลี่ยนที่เก็บข้อมูล ---------- */
+  async database(el, tabs) {
+    const d = await call('database.info');
+    const s = d.scan;
+    const n = v => Number(v || 0).toLocaleString('en-US');
+    const pctOf = (a, b) => Math.min(100, b ? a / b * 100 : 0);
+    const pctTxt = p => (p > 0 && p < 1 ? p.toFixed(1) : String(Math.round(p))) + '%';
+    const level = p => (p >= 90 ? 'bad' : p >= 70 ? 'warn' : '');
+    const cellPct = pctOf(s.cells, s.cell_limit), rowPct = pctOf(s.biggest.rows, d.suggest_rows);
+    const tbl = name => s.tables.find(t => t.name === name) || { rows: 0, label: name };
+    const students = tbl('students').rows;
+    const GROUPS = { system: 'ระบบ', master: 'ข้อมูลหลัก', people: 'บุคคล', gradebook: 'งาน/คะแนน', attendance: 'เวลาเรียน', lookup: 'ตารางอ้างอิง' };
+    const tool = (key, ico, title, text, btn, opt) => `<div class="tool ${opt && opt.danger ? 'danger' : ''}"><h4>${ico} ${esc(title)}</h4><p>${text}</p>
+      <button class="btn ${opt && opt.kind ? opt.kind : ''}" data-tool="${key}" ${opt && opt.disabled ? 'disabled' : ''}>${esc(btn)}</button></div>`;
+    el.innerHTML = `${tabs}
+      <section class="db-hero ${d.is_home ? '' : 'away'}" aria-label="ฐานข้อมูลที่ใช้อยู่">
+        <div class="db-head"><span class="ico" aria-hidden="true">🗄️</span><h2>${esc(d.current.name)}</h2>${dbStatusTag(s.status)}
+          <span class="grow"></span><a class="btn small" href="${esc(d.current.url)}" target="_blank" rel="noopener">เปิดชีต ↗</a></div>
+        <dl class="db-meta">
+          <div><dt>ชนิดฐานข้อมูล</dt><dd>${esc(d.kind)} <span class="muted">• 1 แท็บ = 1 ตาราง</span></dd></div>
+          <div><dt>ที่มา</dt><dd>${d.is_home ? 'ชีตหลัก (ชีตที่ผูกกับโค้ด)' : 'ชีตอื่นที่ตั้งไว้ในหน้านี้'}</dd></div>
+          <div><dt>โครงสร้างข้อมูล</dt><dd>เวอร์ชัน ${esc(s.version || '-')}${String(s.version) !== String(s.expected_version) ? ` <span class="redpen">(โปรแกรมใช้ ${s.expected_version})</span>` : ''} • ${s.tables_found}/${s.tables_total} ตาราง</dd></div>
+          <div><dt>Spreadsheet ID</dt><dd class="mono">${esc(d.current.id)}<button class="copy" data-copy="${esc(d.current.id)}">คัดลอก</button></dd></div>
+          ${d.web_app_url ? `<div><dt>ลิงก์เว็บแอป (แจกครู/นักเรียน)</dt><dd class="mono">${esc(d.web_app_url)}<button class="copy" data-copy="${esc(d.web_app_url)}">คัดลอก</button></dd></div>` : ''}
+        </dl>
+        <div class="db-cap">
+          <div><div class="lbl"><span>พื้นที่ไฟล์ (Google จำกัด 10 ล้านเซลล์)</span><b>${pctTxt(cellPct)}</b></div>
+            <div class="meter ${level(cellPct)}"><i style="width:${cellPct}%"></i></div>
+            <p class="note" style="margin:6px 0 0">ใช้ ${n(s.cells)} เซลล์ • ข้อมูลรวม ${n(s.rows_total)} แถว</p></div>
+          <div><div class="lbl"><span>ตารางใหญ่สุด: ${esc(tbl(s.biggest.name).label)}</span><b>${n(s.biggest.rows)} / ${n(d.suggest_rows)} แถว</b></div>
+            <div class="meter ${level(rowPct)}"><i style="width:${rowPct}%"></i></div>
+            <p class="note" style="margin:6px 0 0">ถ้าเกิน ${n(d.suggest_rows)} แถว หน้าเว็บจะเริ่มช้า — ถึงเวลาย้ายไป SQL Server</p></div>
+        </div>
+        ${d.is_home ? '' : `<div class="db-away"><span>ตอนนี้ไม่ได้ใช้ชีตหลัก${d.home ? ' ("' + esc(d.home.name) + '")' : ''}</span><button class="btn small" data-act="home">กลับไปใช้ชีตหลัก</button></div>`}
+      </section>
+
+      <div class="section"><h2>ตาราง <small class="muted">${s.tables_total} ตาราง • ${n(s.rows_total)} แถว</small></h2>
+        <div class="tbl-wrap"><table class="t db-tables"><thead><tr><th>ตาราง (ชื่อแท็บ)</th><th>เก็บอะไร</th><th class="grp">กลุ่ม</th><th class="n">แถว</th><th>โครงสร้าง</th></tr></thead><tbody>
+        ${s.tables.map(t => `<tr><td class="mono">${esc(t.name)}</td><td>${esc(t.label)}</td><td class="muted grp">${esc(GROUPS[t.group] || t.group)}</td><td class="n">${n(t.rows)}</td>
+          <td>${!t.exists ? '<span class="tag red">ไม่มีแท็บนี้</span>' : t.missing.length ? `<span class="tag late" title="${esc(t.missing.join(', '))}">ขาด ${t.missing.length} คอลัมน์</span>` : '<span class="tag ok">ครบ</span>'}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${s.other_sheets.length ? `<p class="note">แท็บอื่นในไฟล์ที่ระบบไม่ได้ใช้: ${esc(s.other_sheets.join(', '))}</p>` : ''}
+      </div>
+
+      <div class="section"><h2>เครื่องมือ</h2><div class="tool-grid">
+        ${tool('validate', '🔍', 'ตรวจความถูกต้องของข้อมูล', 'ตรวจทุกตารางแบบฐานข้อมูลจริง: รหัสซ้ำ ช่องบังคับว่าง ชนิดข้อมูล และการอ้างอิงข้ามตาราง — ใช้หลังแก้ข้อมูลในชีตด้วยมือ', 'ตรวจเลย')}
+        ${tool('setup', '🛠️', 'อัปเดตโครงสร้างตาราง', 'สร้างแท็บ/คอลัมน์ที่ขาด และใส่ค่าตั้งต้น ไม่ลบข้อมูลเดิม — ใช้หลังอัปเดตโปรแกรม', 'อัปเดต', { kind: s.status === 'READY' ? '' : 'primary' })}
+        ${tool('backup', '💾', 'สำรองข้อมูล', 'ทำสำเนาไฟล์ชีตทั้งไฟล์ไว้ใน Google Drive — แนะนำก่อนล้างข้อมูล หรือก่อนขึ้นภาคเรียนใหม่', 'สำรองตอนนี้')}
+        ${tool('export', '📤', 'ส่งออก CSV', 'ไฟล์ CSV 1 ไฟล์ต่อตาราง ไว้ใน Google Drive สำหรับนำเข้า SQL Server ด้วย <span class="mono">003_import_csv.sql</span>', 'ส่งออก')}
+        ${tool('seed', '🧪', 'ใส่ข้อมูลตัวอย่าง', 'ชุดเดียวกับชีตตัวอย่าง: ห้อง 3/1–3/10 นักเรียน 302 คน งาน 40 ชิ้น' + (students ? ' — <b>ใช้ได้เมื่อยังไม่มีนักเรียน</b>' : ''), 'ใส่ข้อมูลตัวอย่าง', { disabled: students > 0 })}
+        ${tool('clear', '🗑️', 'ล้างข้อมูลทั้งหมด', 'ลบนักเรียน ห้อง วิชา งาน คะแนน เช็กชื่อ และผู้ใช้ที่ไม่ใช่ผู้ดูแล เก็บการตั้งค่าและเกณฑ์ไว้ — ย้อนกลับไม่ได้', 'ล้างข้อมูล…', { danger: true, kind: 'danger' })}
+      </div></div>
+
+      <div class="section"><h2>เปลี่ยนที่เก็บข้อมูล</h2>
+        <div class="switch">
+          <div><h4>ใช้ Google Sheet อื่นเป็นฐานข้อมูล</h4>
+            <p class="note" style="margin:0">วางลิงก์ชีตแล้วกดตรวจสอบ — บัญชี Google ที่ติดตั้งระบบต้องมีสิทธิ์ "แก้ไข" ชีตนั้น</p>
+            <form class="row" data-inspect><label class="f"><span>ลิงก์ Google Sheet หรือ ID</span><input type="text" name="ref" placeholder="https://docs.google.com/spreadsheets/d/…" required autocomplete="off"></label>
+              <button class="btn" type="submit">ตรวจสอบ</button></form>
+            <div data-result></div></div>
+          <div><h4>สร้าง Google Sheet ใหม่เป็นฐานข้อมูล</h4>
+            <p class="note" style="margin:0">สร้างไฟล์ใหม่ใน Google Drive พร้อมตารางครบแต่ยังไม่มีข้อมูล เหมาะกับเริ่มปีการศึกษาใหม่ — ชีตเดิมยังอยู่ กลับมาใช้ได้</p>
+            <form class="row" data-create><label class="f"><span>ชื่อไฟล์</span><input type="text" name="name" maxlength="100" placeholder="เช่น Smart Classroom DB 2570"></label>
+              <button class="btn" type="submit">สร้างแล้วใช้</button></form></div>
+        </div>
+        <p class="note">เปลี่ยนแล้วทุกคนต้องเข้าสู่ระบบใหม่ด้วยบัญชีในฐานข้อมูลนั้น และข้อมูลจะไม่ย้ายตามไป — ถ้าต้องการยกข้อมูลไปด้วย ให้กด "สำรองข้อมูล" แล้วใช้ไฟล์สำรองนั้นเป็นฐานข้อมูล</p>
+      </div>`;
+
+    const again = () => go('settings', { section: 'database' });
+    const busy = async (btn, fn) => { btn.disabled = true; const t = btn.textContent; btn.textContent = 'กำลังทำงาน…'; try { await fn(); } catch (e) { showError(e); } finally { btn.disabled = false; btn.textContent = t; } };
+    $$('[data-copy]', el).forEach(b => b.onclick = () => copyText(b.dataset.copy));
+    const homeBtn = $('[data-act=home]', el);
+    if (homeBtn) homeBtn.onclick = async () => {
+      if (!await confirmBox('กลับไปใช้ชีตหลัก', 'เปลี่ยนฐานข้อมูลกลับไปเป็น "' + (d.home ? d.home.name : 'ชีตหลัก') + '" ทุกคนต้องเข้าสู่ระบบใหม่', 'เปลี่ยน')) return;
+      busy(homeBtn, async () => dbSwitched(await call('database.useHome')));
+    };
+    const tools = {
+      validate: async () => {
+        const r = await call('database.validate');
+        modal({ title: r.count ? 'พบปัญหา ' + n(r.count) + ' จุด' : 'ตรวจความถูกต้องแล้ว',
+          body: r.count ? `<ul class="problems">${r.problems.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${r.count > r.problems.length ? `<p class="note">แสดง ${r.problems.length} จุดแรก</p>` : ''}`
+            : '<p style="margin:0">✅ ข้อมูลถูกต้องครบทุกตาราง (รหัส ช่องบังคับ ชนิดข้อมูล การอ้างอิง) — ส่งออกไป SQL Server ได้</p>' });
+      },
+      setup: async () => { const r = await call('database.setup'); toast('อัปเดตโครงสร้างแล้ว ' + r.tables + ' ตาราง'); again(); },
+      backup: async () => {
+        const r = await call('database.backup');
+        modal({ title: 'สำรองข้อมูลแล้ว', body: `<p style="margin:0 0 8px">สร้างไฟล์ <b>${esc(r.name)}</b> ใน Google Drive แล้ว</p>
+          <p class="note" style="margin:0">ถ้าต้องการใช้ไฟล์นี้เป็นฐานข้อมูล ให้คัดลอกลิงก์ไปวางที่ "ใช้ Google Sheet อื่นเป็นฐานข้อมูล"</p>
+          <p style="margin:12px 0 0"><a class="btn small" href="${esc(r.url)}" target="_blank" rel="noopener">เปิดไฟล์สำรอง ↗</a> <button class="btn small" data-c>คัดลอกลิงก์</button></p>` }).root.querySelector('[data-c]').onclick = () => copyText(r.url);
+      },
+      export: async () => {
+        const r = await call('database.exportCsv');
+        modal({ title: 'ส่งออก CSV แล้ว', body: `<p style="margin:0 0 8px">${r.files} ไฟล์ ในโฟลเดอร์ <b>${esc(r.folder_name)}</b> (Google Drive)</p>
+          <p class="note" style="margin:0">ดาวน์โหลดโฟลเดอร์ไปไว้ที่ C:\\import\\ แล้วรัน database/sqlserver/003_import_csv.sql</p>
+          <p style="margin:12px 0 0"><a class="btn small" href="${esc(r.url)}" target="_blank" rel="noopener">เปิดโฟลเดอร์ ↗</a></p>` });
+      },
+      seed: async () => {
+        if (!await confirmBox('ใส่ข้อมูลตัวอย่าง', 'สร้างห้อง 3/1–3/10 นักเรียน 302 คน งาน 40 ชิ้น คะแนน และเช็กชื่อ พร้อมบัญชี teacher1 / teacher1234', 'ใส่ข้อมูล')) return;
+        const r = await call('database.seedDemo');
+        await App.reloadBoot(); App.renderShell();
+        toast('ใส่ข้อมูลตัวอย่างแล้ว: นักเรียน ' + r.students + ' คน'); again();
+      },
+      clear: async () => {
+        modal({ title: 'ล้างข้อมูลทั้งหมด', body: `<p style="margin:0 0 10px">ฐานข้อมูล <b>${esc(d.current.name)}</b>: ลบนักเรียน ${n(students)} คน ห้อง วิชา งาน คะแนน เช็กชื่อ และผู้ใช้ที่ไม่ใช่ผู้ดูแล <b class="redpen">ย้อนกลับไม่ได้</b></p>
+            <p class="note" style="margin:0 0 10px">แนะนำให้กด "สำรองข้อมูล" ก่อน</p>
+            <label class="f"><span>พิมพ์คำว่า ลบ เพื่อยืนยัน</span><input type="text" name="confirm" autocomplete="off"></label>`,
+          actions: [{ label: 'ยกเลิก' }, { label: 'ล้างข้อมูล', kind: 'danger', onClick: async (close, root) => {
+            await call('database.clear', { confirm: $('[name=confirm]', root).value });
+            Store.del('ctx'); await App.reloadBoot(); App.renderShell();
+            toast('ล้างข้อมูลแล้ว'); again();
+          } }] });
+      }
+    };
+    $$('[data-tool]', el).forEach(b => b.onclick = () => busy(b, tools[b.dataset.tool]));
+
+    const result = $('[data-result]', el);
+    $('[data-inspect]', el).onsubmit = async e => {
+      e.preventDefault();
+      const btn = $('button', e.target);
+      busy(btn, async () => {
+        const r = await call('database.inspect', { id: formData(e.target).ref });
+        const t = r.scan;
+        const ready = t.status === 'READY';
+        const can = !r.is_current && t.status !== 'NEWER';
+        const tr = name => (t.tables.find(x => x.name === name) || { rows: 0 }).rows;
+        result.innerHTML = `<div class="inspect">
+          <div class="t1">${esc(r.name)} ${dbStatusTag(t.status)}</div>
+          <div class="note">${t.tables_found}/${t.tables_total} ตาราง${t.tables_found ? ` • นักเรียน ${n(tr('students'))} คน • ผู้ใช้ ${n(tr('users'))} บัญชี • ข้อมูล ${n(t.rows_total)} แถว` : ''}${t.other_sheets.length ? ` • แท็บอื่น: ${esc(t.other_sheets.slice(0, 5).join(', '))}` : ''}</div>
+          ${r.is_current ? '<div class="note">ชีตนี้คือฐานข้อมูลที่ใช้อยู่แล้ว</div>' : ''}
+          ${t.status === 'NEWER' ? '<div class="redpen">ชีตนี้ใช้โครงสร้างเวอร์ชันใหม่กว่าโปรแกรม — อัปเดตโค้ดก่อน</div>' : ''}
+          ${can ? `<div><button class="btn primary" data-use>${ready ? 'ใช้ชีตนี้เป็นฐานข้อมูล' : 'สร้างตารางในชีตนี้แล้วใช้'}</button>
+            ${!ready && t.tables_found ? '<span class="note"> จะเพิ่มแท็บ/คอลัมน์ที่ขาด ไม่ลบข้อมูลเดิม</span>' : ''}</div>` : ''}
+        </div>`;
+        const ub = $('[data-use]', result);
+        if (ub) ub.onclick = async () => {
+          if (!await confirmBox('เปลี่ยนฐานข้อมูล', 'ใช้ "' + r.name + '" เป็นฐานข้อมูลแทน "' + d.current.name + '" — ทุกคน (รวมคุณ) ต้องเข้าสู่ระบบใหม่ด้วยบัญชีในฐานข้อมูลนั้น ชีตเดิมยังอยู่ กลับมาใช้ได้', 'เปลี่ยนฐานข้อมูล')) return;
+          busy(ub, async () => dbSwitched(await call('database.use', { id: r.id, setup: !ready })));
+        };
+      });
+    };
+    $('[data-create]', el).onsubmit = async e => {
+      e.preventDefault();
+      const name = formData(e.target).name;
+      if (!await confirmBox('สร้างฐานข้อมูลใหม่', 'สร้าง Google Sheet ใหม่' + (name ? ' "' + name + '"' : '') + ' แล้วใช้เป็นฐานข้อมูลทันที (ยังไม่มีข้อมูล) — ทุกคนต้องเข้าสู่ระบบใหม่', 'สร้างแล้วใช้')) return;
+      busy($('button', e.target), async () => dbSwitched(await call('database.create', { name })));
+    };
+  },
+
+  async audit(el, tabs) {
+    const logs = await call('admin.auditLogs', { limit: 200 });
+    el.innerHTML = `${tabs}<p class="note">200 รายการล่าสุด</p>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>เวลา</th><th>ผู้ใช้</th><th>การกระทำ</th><th>ตาราง</th><th>รหัส</th><th>รายละเอียด</th></tr></thead><tbody>
+      ${logs.map(l => `<tr><td style="white-space:nowrap">${thDateTime(l.logged_at)}</td><td>${esc(l.user_name || '-')}</td><td>${esc(l.action)}</td><td class="muted">${esc(l.table_name || '')}</td><td class="muted">${esc(l.record_id || '')}</td><td class="muted">${esc(l.detail || '')}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+};
+</script>
+
+  <script>App.start();</script>
+</body>
+</html>
